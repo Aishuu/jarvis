@@ -6,9 +6,37 @@
 #include "rotate.nxc"
 #include "translate.nxc"
 
-#define CHECK_THETA_RATE    15000
-#define NO_THETA_SPECIFIED  2000
+#define CHECK_THETA_RATE            15000
+#define NO_THETA_SPECIFIED          2000
+#define XMAX                        60    //cm
+#define XMIN                        -60   //cm
+#define YMAX                        69.4  //cm
+#define YMIN                        -30.6 //cm
+#define DEFAULT_COLLISION_MARGIN    2.0   //cm
 
+//Some info on Jarvis' dimensions
+#define JURRHO         15.81     //jarvis' upper right extreme point rho length (cm)
+#define JURTHE         0.6688122 //jarvis' upper right extreme point theta angle (rad)
+#define JLRRHO         20.42     //jarvis' lower right extreme point rho length (cm)
+#define JLRTHE         -1.0112896//jarvis' lower right extreme point theta angle (rad)
+//Jarvis' length with the arm   --> TODO continuous length estimation with arm length&angle
+
+// Global variables for movement module
+   //values stores geometrical data on the four corner points of jarvis (may be extended to support arm deployment?)
+   //values' first dimension is to select a point
+   //second dimension is for parameter
+   //Point:           UpR        UpL    LowR       LowL
+const float rho[]={JURRHO,    JURRHO, JLRRHO,    JLRRHO}; //static rho: geometrical parameter of jarvis
+const float the[]={JURTHE, PI-JURTHE, JLRTHE, PI-JLRTHE}; //static theta: geometrical parameter of jarvis
+      float xval[ ArrayLen(rho) ];                        //x values ->to be computed
+      float yval[ ArrayLen(rho) ];                        //y values ->to be computed
+float jar_x_min, jar_x_max,      //jarvis extreme points in x...
+      jar_y_min, jar_y_max;      //...and in y
+
+
+///////////////
+// Functions //
+///////////////
 void init_pos() {
      compass_start = compass;
      current_pos.theta = 90;
@@ -48,5 +76,44 @@ task checkTheta() {
         Release(movement_mutex);
     }
 }
+
+//////////////////////////////////
+// Boundary checks for movement //
+//////////////////////////////////
+bool checkTranslationBound(position dest, float margin=DEFAULT_COLLISION_MARGIN) {
+     // Implicit assumption: current position is legit (and valid)
+     //assuming theta will stay constant
+     //then the set of valid (x,y,THETA) is convex!
+     computeExtrPoints(dest); //result stored in global variable
+     return checkInBound(jar_x_min,jar_x_max,jar_y_min,jar_y_max,margin);
+}
+
+bool checkRotationBound(position dest, float margin=DEFAULT_COLLSION_MARGIN) {
+     // Implicit assumption: current position is legit (and valid)
+     
+}
+
+void computeExtrPoints(position pos) {
+     //First compute extreme values as if jarvis was in (0,0,pos.theta)
+     //then update with actual values of (pos.x,pos.y)
+     
+     //pos.theta dependance computation
+     float theta_rad=pos.theta*PI/180;   //convert destination bearing in radians because fuck ° that's why
+     for(int i=0;i<ArrayLen(rho);i++) {  //compute (x,y) values
+        xval[i]=rho[i]*cos(the[i]+theta_rad);
+        yval[i]=rho[i]*sin(the[i]+theta_rad);
+     }
+     
+     //find min/max and include actual x/y values
+     jar_x_min=ArrayMin(xval,NA,NA)+pos.x;
+     jar_x_max=ArrayMax(xval,NA,NA)+pos.x;
+     jar_y_min=ArrayMin(yval,NA,NA)+pos.y;
+     jar_y_max)ArrayMax(yval,NA,NA)+pos.y;
+
+} //computeExtrPoints
+
+bool checkInBound(float x_min, float x_max, float y_min, float y_max, float margin=DEFAULT_COLLISION_MARGIN) {
+     return (x_min-margin>XMIN) && (x_max+margin<XMAX) && (y_min-margin>YMIN) && (y_max+margin<YMAX);
+} //checkInBound
 
 #endif //movement.nxc

@@ -26,6 +26,7 @@ struct position {
 };
 
 
+bool MV_OUT_OF_BOUND    // set to true when going out of bond
 bool STOP;              // set to true when one want to interrupt a movement
 bool PAUSE;             // set to true if one want to pause a movement
 bool ROTATING;          // set to true when jarvis is rotating
