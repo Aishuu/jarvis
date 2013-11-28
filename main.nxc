@@ -1,0 +1,16 @@
+#include "constant.h"
+
+#include "movement.nxc"
+#include "detect_ball.nxc"
+
+task main() {
+    SetSensorLowspeed(IN_4);
+    SetSensorUltrasonic(IN_3);
+    init_pos();
+    //find_ball();
+    moveTo(60, 0);
+    moveTo(60, 60);
+    moveTo(0, 60);
+    moveTo(0, 0);
+    setTheta(90);
+}

@@ -1,0 +1,71 @@
+#include "constant.h"
+
+#include "rotate.nxc"
+
+#define DIST_SEPARATION 20
+#define ANGLE_BALL      50
+
+int angle_init, angle_center;
+
+void find_ball();
+
+task turn_find_no_ball() {
+    rotate(ANGLE_BALL, 20);
+}
+
+task monitor_no_ball() {
+    int prec_sen, new_sen;
+
+    while(current_pos.theta - angle_init <= ANGLE_BALL) {
+        prec_sen = SensorUS(IN_3);
+        Wait(100);
+        new_sen = SensorUS( IN_3 );
+        if(new_sen - prec_sen > DIST_SEPARATION)
+            break;
+        if(current_pos.theta < angle_init)
+            angle_init -= 360;
+    }
+    STOP = true;
+    while(STOP)
+        Wait(100);
+    if(angle_init > current_pos.theta)
+        angle_init -= 360;
+    angle_center = ((angle_init + current_pos.theta)/2)%360;
+    if(angle_center > current_pos.theta+180)
+        angle_center -= 360;
+    if(current_pos.theta > angle_center+180)
+        angle_center += 360;
+    rotate(angle_center - current_pos.theta);
+    for(;;);
+}
+
+task monitor_ball() {
+    int prec_sen, new_sen;
+
+    Precedes(monitor_no_ball, turn_find_no_ball);
+
+    angle_init = current_pos.theta;
+    while(current_pos.theta - angle_init <= 360) {
+        prec_sen = SensorUS(IN_3);
+        Wait(100);
+        new_sen = SensorUS( IN_3 );
+        if(prec_sen - new_sen > DIST_SEPARATION)
+            break;
+        if(current_pos.theta < angle_init)
+            angle_init -= 360;
+    }
+    STOP = true;
+    while(STOP)
+        Wait(100);
+    angle_init = current_pos.theta;
+}
+
+task turn_find_ball() {
+    Precedes(monitor_no_ball, turn_find_no_ball);
+    rotate(360, 30);
+}
+
+void find_ball() {
+    start monitor_ball;
+    start turn_find_ball;
+}

@@ -1,0 +1,52 @@
+#ifndef MOVEMENT_NXC
+#define MOVEMENT_NXC
+
+#include "constant.h"
+
+#include "rotate.nxc"
+#include "translate.nxc"
+
+#define CHECK_THETA_RATE    15000
+#define NO_THETA_SPECIFIED  2000
+
+void init_pos() {
+     compass_start = compass;
+     current_pos.theta = 90;
+     current_pos.x = 0;
+     current_pos.y = 0;
+}
+
+void moveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
+     float dx,dy,dist,angle;
+
+     dx=x-current_pos.x;
+     dy=y-current_pos.y;
+     
+     dist=sqrt(dx*dx+dy*dy);
+     
+     if(dy==0 && dx<0)
+          angle=180;
+     else
+          angle=atan( dy/(dx+dist) )*360/PI;
+          
+     setTheta(angle);
+     translate(dist);
+     if(theta != NO_THETA_SPECIFIED)
+        setTheta(theta);
+}
+
+void moveToPos(position dest) {
+     moveTo(dest.x,dest.y,dest.theta);
+}
+
+task checkTheta() {
+    for(;;) {
+        Wait(CHECK_THETA_RATE);
+        Acquire(movement_mutex);
+        Wait(500);
+        current_pos.theta = (90-compass+compass_start)%360;
+        Release(movement_mutex);
+    }
+}
+
+#endif //movement.nxc
