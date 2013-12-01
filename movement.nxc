@@ -8,30 +8,34 @@
 
 #define CHECK_THETA_RATE            15000
 #define NO_THETA_SPECIFIED          2000
-#define XMAX                        60    //cm
-#define XMIN                        -60   //cm
-#define YMAX                        69.4  //cm
-#define YMIN                        -30.6 //cm
-#define DEFAULT_COLLISION_MARGIN    2.0   //cm
+#define XMAX                        60         //cm
+#define XMIN                        ( -1*60 )  //cm
+#define YMAX                        69.4       //cm
+#define YMIN                        ( -1*30.6 )//cm
+#define DEFAULT_COLLISION_MARGIN    2.0        //cm
 
 //Some info on Jarvis' dimensions
-#define JURRHO         15.81     //jarvis' upper right extreme point rho length (cm)
-#define JURTHE         0.6688122 //jarvis' upper right extreme point theta angle (rad)
-#define JLRRHO         20.42     //jarvis' lower right extreme point rho length (cm)
-#define JLRTHE         -1.0112896//jarvis' lower right extreme point theta angle (rad)
+// <!> Point names based on how Jarvis looks when "current_pos.theta"=PI(rad)
+// <!> Values based on actual points' position when ""current_pos.theta"=0
+#define JURRHO         15.81           //jarvis' upper right extreme point rho length (cm)
+#define JURTHE         ( -1*0.9019842 )//jarvis' upper right extreme point theta angle (rad)
+#define JLRRHO         20.42           //jarvis' lower right extreme point rho length (cm)
+#define JLRTHE         ( -1*2.5820859 )//jarvis' lower right extreme point theta angle (rad)
+#define NB_CTR_PTS     4               //Number of contour points
 //Jarvis' length with the arm   --> TODO continuous length estimation with arm length&angle
 
 // Global variables for movement module
-   //values stores geometrical data on the four corner points of jarvis (may be extended to support arm deployment?)
-   //values' first dimension is to select a point
-   //second dimension is for parameter
-   //Point:           UpR        UpL    LowR       LowL
-const float rho[]={JURRHO,    JURRHO, JLRRHO,    JLRRHO}; //static rho: geometrical parameter of jarvis
-const float the[]={JURTHE, PI-JURTHE, JLRTHE, PI-JLRTHE}; //static theta: geometrical parameter of jarvis
-      float xval[ ArrayLen(rho) ];                        //x values ->to be computed
-      float yval[ ArrayLen(rho) ];                        //y values ->to be computed
-float jar_x_min, jar_x_max,      //jarvis extreme points in x...
-      jar_y_min, jar_y_max;      //...and in y
+   //Point:           UpR      UpL    LowR     LowL
+const float rho[]={JURRHO,  JURRHO, JLRRHO,  JLRRHO}; //static rho: geometrical parameter of jarvis (cm)
+const float the[]={JURTHE, -JURTHE, JLRTHE, -JLRTHE}; //static theta: geometrical parameter of jarvis (rad)
+      float xval[ NB_CTR_PTS ];                       //x values ->to be computed
+      float yval[ NB_CTR_PTS ];                       //y values ->to be computed
+      float angle1[ NB_CTR_PTS+1 ];                   //lower angle value ->to be computed  -- the '+1' value is to facilitate min/max computation over several loops...
+      float angle2[ NB_CTR_PTS+1 ];                   //upper angle value ->to be computed
+float jar_x_min, jar_x_max,                           //jarvis extreme points in x...
+      jar_y_min, jar_y_max;                           //...and in y
+float inf_rot_lim,sup_rot_lim;                        //InBound rotation limits
+enum TypeWall {XPOS=0,YPOS=1,XNEG=2,YNEG=3};          //wall designation
 
 
 ///////////////
@@ -51,7 +55,7 @@ void moveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
      dy=y-current_pos.y;
      
      dist=sqrt(dx*dx+dy*dy);
-     
+
      if(dy==0 && dx<0)
           angle=180;
      else
@@ -77,43 +81,112 @@ task checkTheta() {
     }
 }
 
+
 //////////////////////////////////
 // Boundary checks for movement //
 //////////////////////////////////
-bool checkTranslationBound(position dest, float margin=DEFAULT_COLLISION_MARGIN) {
-     // Implicit assumption: current position is legit (and valid)
-     //assuming theta will stay constant
-     //then the set of valid (x,y,THETA) is convex!
-     computeExtrPoints(dest); //result stored in global variable
-     return checkInBound(jar_x_min,jar_x_max,jar_y_min,jar_y_max,margin);
-}
-
-bool checkRotationBound(position dest, float margin=DEFAULT_COLLSION_MARGIN) {
-     // Implicit assumption: current position is legit (and valid)
-     
-}
-
-void computeExtrPoints(position pos) {
-     //First compute extreme values as if jarvis was in (0,0,pos.theta)
-     //then update with actual values of (pos.x,pos.y)
-     
-     //pos.theta dependance computation
-     float theta_rad=pos.theta*PI/180;   //convert destination bearing in radians because fuck ° that's why
-     for(int i=0;i<ArrayLen(rho);i++) {  //compute (x,y) values
-        xval[i]=rho[i]*cos(the[i]+theta_rad);
-        yval[i]=rho[i]*sin(the[i]+theta_rad);
+void computeExtrPoints(float posx, float posy, float postheta) {
+     float theta_rad=postheta*PI/180;   //convert position bearing in radians because fuck ° that's why
+     for(int i=0;i<NB_CTR_PTS;i++) {  //compute (x,y) values
+        xval[i]=rho[i]*cos(the[i]+theta_rad)+posx;
+        yval[i]=rho[i]*sin(the[i]+theta_rad)+posy;
      }
-     
-     //find min/max and include actual x/y values
-     jar_x_min=ArrayMin(xval,NA,NA)+pos.x;
-     jar_x_max=ArrayMax(xval,NA,NA)+pos.x;
-     jar_y_min=ArrayMin(yval,NA,NA)+pos.y;
-     jar_y_max)ArrayMax(yval,NA,NA)+pos.y;
+
+     //find min/max
+     jar_x_min=ArrayMin(xval,NA,NA);
+     jar_x_max=ArrayMax(xval,NA,NA);
+     jar_y_min=ArrayMin(yval,NA,NA);
+     jar_y_max=ArrayMax(yval,NA,NA);
 
 } //computeExtrPoints
+
+void computeExtrPointsPos(position pos) {
+     computeExtrPoints(pos.x,pos.y,pos.theta);
+}
 
 bool checkInBound(float x_min, float x_max, float y_min, float y_max, float margin=DEFAULT_COLLISION_MARGIN) {
      return (x_min-margin>XMIN) && (x_max+margin<XMAX) && (y_min-margin>YMIN) && (y_max+margin<YMAX);
 } //checkInBound
+
+void computeLimitAngles(TypeWall wall) {
+     float rel_zero,dist2Wall;
+
+     //compute distance to wall
+     switch(wall){
+        case YPOS:
+           dist2Wall=YMAX-current_pos.y; break;
+        case XNEG:
+           dist2Wall=current_pos.x-XMIN; break;
+        case YNEG:
+           dist2Wall=current_pos.y-YMIN; break;
+        default: //XPOS
+           dist2Wall=XMAX-current_pos.x; break;
+     }
+
+     //compute limit angles for contour points
+     for(int i=0;i<NB_CTR_PTS;i++) {
+        if(dist2Wall<=rho[i]){
+           //limit angles exist
+           //find angle1/2 s.t angle1<=the<=angle2
+           //--> rho*cos(the)<=abs(dist2Wall)
+           angle1[i]=acos(dist2Wall/rho[i]);      //rad
+           angle2[i]=2*PI-angle1[i];
+
+           //set relative zero
+           rel_zero=current_pos.theta*PI/180+the[i]-wall*PI/2;
+           while(rel_zero<0)
+              rel_zero+=2*PI;
+           #ifndef DEBUG
+           if(rel_zero<angle1[i] || rel_zero>angle2[i] || angle2[i]-angle1[i]>2*PI) {
+           #endif
+              //something went wrong (code or model)
+              Ds(5,"point",i);
+              Ds(6,"angle1",angle1[i]);
+              Ds(7,"angle2",angle2[i]);
+              Ds(8,"rel_z",rel_zero);
+              Wait(10000);
+           #ifndef DEBUG
+           }
+           #endif
+
+           //retrieve rotation values
+           angle1[i]-=rel_zero;
+           angle2[i]-=rel_zero;
+        } else { //no limits
+           angle1[i]=-PI;
+           angle2[i]=PI;
+        }
+     }//for loop (on points)
+} //computeLimitAngles
+
+// TODO : add in support to determine limit translations
+bool checkTranslationInBound(position dest, float margin=DEFAULT_COLLISION_MARGIN) {
+     // Implicit assumption: current position is legit (and valid)
+     //assuming theta will stay constant
+     //then the set of valid (x,y,THETA) is convex!
+     computeExtrPointsPos(dest); //result stored in global variable
+     return checkInBound(jar_x_min,jar_x_max,jar_y_min,jar_y_max,margin);
+}
+
+bool checkRotationInBound(float rotation2check, float margin=DEFAULT_COLLSION_MARGIN) {
+     // Implicit assumption: current position is legit (and valid)
+     //assuming (x,y) stay constant
+     //the set of valid (X,Y,theta) can be convexified
+     //(yup, the author prefers manipulating convex sets)
+     inf_rot_lim=0;
+     sup_rot_lim=0;
+     for(int wall=0;wall<4;wall++){
+        computeLimitAngles(wall);
+        angle1[NB_CTR_PTS]=inf_rot_lim;
+        angle2[NB_CTR_PTS]=sup_rot_lim;
+        
+        inf_rot_lim=ArrayMin(angle1,NA,NA);
+        sup_rot_lim=ArrayMax(angle2,NA,NA);
+     }
+     return (rotation2check<=sup_rot_lim) && (rotation2check>=inf_rot_lim);
+} //checkRotationInBound
+
+
+
 
 #endif //movement.nxc
