@@ -32,9 +32,11 @@ const float the[]={JURTHE, -JURTHE, JLRTHE, -JLRTHE}; //static theta: geometrica
       float yval[ NB_CTR_PTS ];                       //y values ->to be computed
       float angle1[ NB_CTR_PTS+1 ];                   //lower angle value ->to be computed  -- the '+1' value is to facilitate min/max computation over several loops...
       float angle2[ NB_CTR_PTS+1 ];                   //upper angle value ->to be computed
+      float trans[ NB_CTR_PTS+1 ];                    //translation values ->to be computed
 float jar_x_min, jar_x_max,                           //jarvis extreme points in x...
       jar_y_min, jar_y_max;                           //...and in y
 float inf_rot_lim,sup_rot_lim;                        //InBound rotation limits
+float inf_trans_lim,sup_trans_lim;                    //InBound translation limits
 enum TypeWall {XPOS=0,YPOS=1,XNEG=2,YNEG=3};          //wall designation
 
 
@@ -104,14 +106,9 @@ void computeExtrPointsPos(position pos) {
      computeExtrPoints(pos.x,pos.y,pos.theta);
 }
 
-bool checkInBound(float x_min, float x_max, float y_min, float y_max, float margin=DEFAULT_COLLISION_MARGIN) {
-     return (x_min-margin>XMIN) && (x_max+margin<XMAX) && (y_min-margin>YMIN) && (y_max+margin<YMAX);
-} //checkInBound
-
-void computeLimitAngles(TypeWall wall) {
-     float rel_zero,dist2Wall;
-
-     //compute distance to wall
+float computeDist2Wall(TypeWall wall){
+//compute distance from tracked point to wall 'wall'
+     float dist2Wall;
      switch(wall){
         case YPOS:
            dist2Wall=YMAX-current_pos.y; break;
@@ -122,6 +119,30 @@ void computeLimitAngles(TypeWall wall) {
         default: //XPOS
            dist2Wall=XMAX-current_pos.x; break;
      }
+     return dist2Wall;
+}
+
+void computeLimitTranslation(TypeWall wall) {
+//compute the limit translation until 'wall' is reached according to current position
+     //compute current distance to wall
+     float dist2Wall=computeDist2Wall(wall);
+     //convert to rad and correct the value according to wall
+     float theta_rad=current_pos.theta*PI/180-wall*PI/2;
+     //compute the limit translation for each contour point
+     for(int i=0;i<NB_CTR_PTS;i++){
+     //          (actual distance of ctr_point to wall  )/(cos of the angle between bearing and direction of the wall)
+        trans[i]=(dist2wall-rho[i]*cos(theta_rad+the[i]))/cos(theta_rad);
+     }
+} //computeLimitTranslation
+
+bool checkInBound(float x_min, float x_max, float y_min, float y_max, float margin=DEFAULT_COLLISION_MARGIN) {
+     return (x_min-margin>XMIN) && (x_max+margin<XMAX) && (y_min-margin>YMIN) && (y_max+margin<YMAX);
+} //checkInBound
+
+void computeLimitAngles(TypeWall wall) {
+//compute the limit rotation angles until 'wall' is reached according to current position
+     float rel_zero;
+     float dist2Wall=computeDist2Wall(wall);
 
      //compute limit angles for contour points
      for(int i=0;i<NB_CTR_PTS;i++) {
@@ -132,10 +153,10 @@ void computeLimitAngles(TypeWall wall) {
            angle1[i]=acos(dist2Wall/rho[i]);      //rad
            angle2[i]=2*PI-angle1[i];
 
-           //set relative zero
+           //set relative zero: current angle (rad) with correction depending on 'wall'
            rel_zero=current_pos.theta*PI/180+the[i]-wall*PI/2;
            while(rel_zero<0)
-              rel_zero+=2*PI;
+              rel_zero+=2*PI; //we want rel_zero in [0, 2PI[ -- actually we want angle1<rel_zero<angle2
            #ifndef DEBUG
            if(rel_zero<angle1[i] || rel_zero>angle2[i] || angle2[i]-angle1[i]>2*PI) {
            #endif
@@ -160,33 +181,96 @@ void computeLimitAngles(TypeWall wall) {
 } //computeLimitAngles
 
 // TODO : add in support to determine limit translations
-bool checkTranslationInBound(position dest, float margin=DEFAULT_COLLISION_MARGIN) {
+bool checkTranslationInBound(float posx, float posy, float margin=DEFAULT_COLLISION_MARGIN) {
      // Implicit assumption: current position is legit (and valid)
      //assuming theta will stay constant
      //then the set of valid (x,y,THETA) is convex!
-     computeExtrPointsPos(dest); //result stored in global variable
+     computeExtrPoints(posx,posy,current_pos.theta); //result stored in global variable
      return checkInBound(jar_x_min,jar_x_max,jar_y_min,jar_y_max,margin);
 }
 
-bool checkRotationInBound(float rotation2check, float margin=DEFAULT_COLLSION_MARGIN) {
+bool checkTranslationInBound2(float translation2check, float margin=DEFAULT_COLLISION_MARGIN){
+   inf_trans_lim=0;
+   sup_trans_lim=0;
+   for(int wall=0;wall<4;wall++){ //loop on 4 walls
+      //compute translation limit for 'wall'
+      computeLimitTranslation(wall);
+      
+      //set initial/previous min value and find new min
+      trans[NB_CTR_PTS]=inf_trans_lim;
+      inf_trans_lim=ArrayMin(trans,NA,NA);
+      
+      //same for max value
+      trans[NB_CTR_PTS]=sup_trans_lim;
+      sup_trans_lim=ArrayMax(trans,NA,NA);
+   }
+   return (translation2check<=sup_trans_value) && (translation2check>=inf_trans_value)
+}
+
+bool checkRotationInBound(float rotation2check, float margin=DEFAULT_COLLISION_MARGIN) {
      // Implicit assumption: current position is legit (and valid)
      //assuming (x,y) stay constant
      //the set of valid (X,Y,theta) can be convexified
      //(yup, the author prefers manipulating convex sets)
      inf_rot_lim=0;
      sup_rot_lim=0;
-     for(int wall=0;wall<4;wall++){
+     for(int wall=0;wall<4;wall++){ //loop on 4 walls
+        //compute limit rotation angles for 'wall'
         computeLimitAngles(wall);
+
+        //add in initial/previous values to find min/max
         angle1[NB_CTR_PTS]=inf_rot_lim;
         angle2[NB_CTR_PTS]=sup_rot_lim;
         
+        //find min/max
         inf_rot_lim=ArrayMin(angle1,NA,NA);
         sup_rot_lim=ArrayMax(angle2,NA,NA);
      }
+     
+     //convert from rad to °
+     inf_rot_lim=inf_rot_lim*180/PI;
+     sup_rot_lim=sup_rot_lim*180/PI;
      return (rotation2check<=sup_rot_lim) && (rotation2check>=inf_rot_lim);
 } //checkRotationInBound
 
 
+/////////////////////////////
+// Safe movement functions //
+/////////////////////////////
+void safeMoveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
+     float dx,dy,dist,angle;
+     MV_OUT_OF_BOUND=false;
+
+     dx=x-current_pos.x;
+     dy=y-current_pos.y;
+
+     dist=sqrt(dx*dx+dy*dy);
+
+     if(dy==0 && dx<0)
+          angle=180;
+     else
+          angle=atan( dy/(dx+dist) )*360/PI;
+          
+     if( checkRotationInBound(angle) )
+        setTheta(angle);
+     else
+        MV_OUT_OF_BOUND=true;
+        Wait(5000);
+        return;
+     if(checkTranslationInBound(x,y))
+        translate(dist);
+     else
+        MV_OUT_OF_BOUND=true;
+        Wait(5000);
+        return;
+     if(theta != NO_THETA_SPECIFIED)
+        if(checkRotationInBound(theta) )
+           setTheta(theta);
+        else
+           MV_OUT_OF_BOUND=true;
+           Wait(5000);
+           return;
+}
 
 
 #endif //movement.nxc

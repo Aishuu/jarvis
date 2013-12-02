@@ -21,31 +21,21 @@ void forward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
      x_dep=current_pos.x;
      y_dep=current_pos.y;
      theta_dep=current_pos.theta;
-     Ds(2, "x_dep", x_dep);
-     Ds(3, "y_dep", y_dep);
-     Ds(1, "theta_d", theta_dep);
-         
+
      l_rotc=MotorRotationCount(OUT_A);
      r_rotc=MotorRotationCount(OUT_B);
      l_rotc_i=l_rotc;
      r_rotc_i=r_rotc;
-     //D(1,l_rotc_i);
-     //D(2,r_rotc_i);
-     
+
      angle = distance/DIAM/PI*360;    //how much the wheels must rotate in degrees
-     //D(5,angle);
 
      l_rotc_d=l_rotc+angle;
      r_rotc_d=r_rotc+angle;
-     //D(6,l_rotc_d);
-     //D(7,r_rotc_d);
      //end init
 
      while( (l_rotc_d>l_rotc || r_rotc_d>r_rotc) && !STOP ) {
          l_rotc=MotorRotationCount(OUT_A); //update rotation...
          r_rotc=MotorRotationCount(OUT_B); // ...counts info
-         //D(3,l_rotc);
-         //D(4,r_rotc);
          //compute speed rectification coefficient to move straight
          rectif=(l_rotc-l_rotc_i-r_rotc+r_rotc_i)*TRANSLATE_RECTIF_COEFF;
          //if rectif>0, need to turn left
@@ -84,22 +74,15 @@ void backward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
      r_rotc=MotorRotationCount(OUT_B);
      l_rotc_i=l_rotc;
      r_rotc_i=r_rotc;
-     //D(1,l_rotc_i);
-     //D(2,r_rotc_i);
 
      angle = distance/DIAM/PI*360;  //distance is absolute! ...
-     //D(5,angle);
 
      l_rotc_d=l_rotc-angle;         // ...angle is thus absolute
      r_rotc_d=r_rotc-angle;
-     //D(6,l_rotc_d);
-     //D(7,r_rotc_d);
 
      while( (l_rotc_d<l_rotc || r_rotc_d<r_rotc) && !STOP ) {
          l_rotc=MotorRotationCount(OUT_A);
          r_rotc=MotorRotationCount(OUT_B);
-         //D(3,l_rotc);
-         //D(4,r_rotc);
          rectif=(l_rotc-l_rotc_i-r_rotc+r_rotc_i)*TRANSLATE_RECTIF_COEFF;
          //if rectif>0 , need to turn backward right
          OnRev(OUT_A, speed+rectif ); //left motor
