@@ -1,7 +1,11 @@
+#include "movement.nxc"
+
 #define RECTIF_COEF 10
 
 task hold()
 {
+	
+	moveTo(10, 0);
 	int rotc=MotorRotationCount(OUT_C);
 	int rectif, hold_angle=rotc-35;
 	RotateMotor(OUT_C, 50,-40);
@@ -13,38 +17,39 @@ task hold()
 	}
 }
 
+task lift_arm()
+{
+	
+}
+
+
+/*USELESS*/
 task let()
 {
 	PlayTone(440, 500);
      	stop hold;
 	OnFwd(OUT_C,30);
-	//RotateMotor(OUT_C,30,-20);
 	if( MotorOverload(OUT_C) ) {
 		Off(OUT_C);
 		PlayTone(440, 500);
 		PlayTone(440, 500);
 	}
-	//start hold;
 }
 
 task throw()
 {
      PlayTone(300, 500);
      stop hold;
-     //OnRevSync(OUT_AB, 100, 0);
-     //Wait(500);
      RotateMotor(OUT_C, 100,-45);
-     //Off(OUT_AB);
 }
+
+
 
 task main(){
 
     StartTask(hold);
     Wait(5000);
     StartTask(throw);
-    //Wait(3000);
-    //StartTask(let);
-    //Wait(2000);
-    //Off(OUT_C);
+
 
 }
