@@ -8,6 +8,10 @@
 
 #define CHECK_THETA_RATE    15000
 #define NO_THETA_SPECIFIED  2000
+#define XMAX                60
+#define XMIN                -60
+#define YMAX                69.4
+#define YMIN                -30.6
 
 void init_pos() {
      compass_start = compass;
