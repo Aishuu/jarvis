@@ -12,7 +12,7 @@
 #define ORD_POWER_SPEED         19.333              //  and a power of 100 correspond to an angular speed of 274°/s (which should be the maximum for the motors)
 #define CONST 2.04388                               // Coeff tacho/angle_robot
 
-#define CALIB                                     // Used to calibrate the constant
+//#define CALIB                                     // Used to calibrate the constant
 
 // counterclockwise rotate jarvis of angle (in °) at a speed defined by power (between 10 and 90 should be good)
 void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {

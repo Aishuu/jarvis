@@ -1,16 +1,24 @@
 #include "constant.h"
 
-#include "test_radar.nxc"
 #include "movement.nxc"
-//#include "detect_ball.nxc"
+#include "detect_ball.nxc"
 
 task main() {
     SetSensorLowspeed(IN_4);
     SetSensorUltrasonic(IN_3);
     init_pos();
-    for(cmp_dump=1;cmp_dump<4;cmp_dump++)
-        for(int power=20; power<50; power +=10) {
-            rotate(360, power);
-            Wait(500);
-        }
+    int xmax = 40;
+    int ymax = 50;
+    int ymin = -18;
+    //find_ball();
+    //rotate(80);
+    //grab_and_send_ball(-28, 25);
+    start task_hold;
+    moveTo(0, ymin);
+    moveTo(-xmax, ymin);
+    moveTo(-xmax, ymax);
+    moveTo(xmax, ymax);
+    moveTo(xmax, ymin);
+    moveTo(0, ymin);
+    moveTo(0, 0);
 }
