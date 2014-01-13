@@ -95,7 +95,7 @@ void backward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
          current_pos.y=y_dep+dist*sin(theta_dep*PI/180);
      }
      Off(OUT_AB);
-     STOP=false
+     STOP=false;
 } //backward
 
 void translate(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
