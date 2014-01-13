@@ -1,71 +1,64 @@
+#ifndef DETECT_BALL_NXC
+#define DETECT_BALL_NXC
+
 #include "constant.h"
 
-#include "rotate.nxc"
+#include "movement.nxc"
+#include "arm.nxc"
 
-#define DIST_SEPARATION 20
-#define ANGLE_BALL      50
+#define DIST_BALL       10
+#define DIST_BALL_MAX   60
+#define ANGLE_BALL      70
+#define ANGLE_RECTIF    5
+#define RESOL           15
 
 int angle_init, angle_center;
-
-void find_ball();
-
-task turn_find_no_ball() {
-    rotate(ANGLE_BALL, 20);
-}
-
-task monitor_no_ball() {
-    int prec_sen, new_sen;
-
-    while(current_pos.theta - angle_init <= ANGLE_BALL) {
-        prec_sen = SensorUS(IN_3);
-        Wait(100);
-        new_sen = SensorUS( IN_3 );
-        if(new_sen - prec_sen > DIST_SEPARATION)
-            break;
-        if(current_pos.theta < angle_init)
-            angle_init -= 360;
-    }
-    STOP = true;
-    while(STOP)
-        Wait(100);
-    if(angle_init > current_pos.theta)
-        angle_init -= 360;
-    angle_center = ((angle_init + current_pos.theta)/2)%360;
-    if(angle_center > current_pos.theta+180)
-        angle_center -= 360;
-    if(current_pos.theta > angle_center+180)
-        angle_center += 360;
-    rotate(angle_center - current_pos.theta);
-    for(;;);
-}
-
-task monitor_ball() {
-    int prec_sen, new_sen;
-
-    Precedes(monitor_no_ball, turn_find_no_ball);
-
-    angle_init = current_pos.theta;
-    while(current_pos.theta - angle_init <= 360) {
-        prec_sen = SensorUS(IN_3);
-        Wait(100);
-        new_sen = SensorUS( IN_3 );
-        if(prec_sen - new_sen > DIST_SEPARATION)
-            break;
-        if(current_pos.theta < angle_init)
-            angle_init -= 360;
-    }
-    STOP = true;
-    while(STOP)
-        Wait(100);
-    angle_init = current_pos.theta;
-}
+int nb_file;
 
 task turn_find_ball() {
-    Precedes(monitor_no_ball, turn_find_no_ball);
-    rotate(360, 30);
+    rotate(360, 15);
+}
+
+int getDistanceToWall(int x, int y) {
+    int x1, x2, y1, y2;
+    x1 = x-XMIN;
+    x2 = XMAX-x;
+    y1 = y-YMIN;
+    y2 = YMAX-y;
+    return x1<x2 ? x1<y1 ? x1<y2 ? x1 : y2 : y1<y2 ? y1 : y2 : x2<y1 ? x2<y2 ? x2 : y2 : y1<y2 ? y1 : y2;
+}
+
+void monitor_ball() {
+    int i;
+    /*
+    nb_file++;
+    string filename = StrCat("dump", NumToStr(nb_file));
+    string s;
+    byte fileHandle;
+    short b_written;
+    DeleteFile(filename);
+    CreateFile(filename, 4096, fileHandle);
+    WriteLnString(fileHandle, "#theta\t\t\tradar", b_written);
+    */
+    for(i=0; i<360/RESOL; i++) {
+        rotate(RESOL);
+        Wait(500);
+        int r = ultras;
+        /*
+        s = StrCat(NumToStr(current_pos.theta), "\t\t\t", NumToStr(r));
+        WriteLnString(fileHandle, s, b_written);
+        */
+    }
 }
 
 void find_ball() {
-    start monitor_ball;
-    start turn_find_ball;
+    angle_init = 0;
+    angle_center = 0;
+    ROTATING = true;
+    nb_file = 0;
+    //start turn_find_ball;
+    monitor_ball();
+    
 }
+
+#endif      // detect_ball.nxc

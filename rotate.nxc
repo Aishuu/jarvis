@@ -10,7 +10,8 @@
 #define ROTATE_RECTIF_COEFF     0.5
 #define SLOPE_POWER_SPEED       2.933               //  These values are chosen so that a power of 10 correspond to a anglular speed of 10°/s
 #define ORD_POWER_SPEED         19.333              //  and a power of 100 correspond to an angular speed of 274°/s (which should be the maximum for the motors)
-#define CONST 2.03805                               // Coeff tacho/angle_robot
+#define STABILISATION_TIME      500                 // Delay for Jarvis to a uniform rotation speed
+#define CONST 2.0513                               // Coeff tacho/angle_robot
 
 //#define CALIB                                     // Used to calibrate the constant
 
@@ -20,13 +21,12 @@ void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {
     // Compute the final value of the tachos
     const long l_tacho_start = MotorRotationCount(OUT_A);
     const long r_tacho_start = MotorRotationCount(OUT_B);
-    const long l_tacho_end = l_tacho_start - angle*CONST;
-    const long r_tacho_end = r_tacho_start + angle*CONST;
+    const long l_tacho_end = current_pos.l_tacho_last_rotate - (angle + current_pos.angle_cumul)*CONST;
+    const long r_tacho_end = current_pos.r_tacho_last_rotate + (angle + current_pos.angle_cumul)*CONST;
     long l_tacho = 0;
     long r_tacho = 0;
 
     // Initial situation
-    const float angle_start = current_pos.theta;
     long tick_start = CurrentTick();
     long tickPause = 0;
 
@@ -70,26 +70,41 @@ void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {
             r_tacho = MotorRotationCount(OUT_B)-r_tacho_start;
 
             // Update the orientation of jarvis
-            current_pos.theta = (angle_start + r_tacho/CONST);
+            current_pos.theta = (current_pos.angle_last_rotate + (r_tacho+r_tacho_start - current_pos.r_tacho_last_rotate)/CONST);
             current_pos.theta = current_pos.theta % 360;
 
             // coeff used to ensure both wheels are synchronized
             coeff = (l_tacho + r_tacho)*ROTATE_RECTIF_COEFF;
 
             // coeff used to ensure that the average speed is close to the theoritical value (given with power)
+            long t = CurrentTick()-tick_start;
             if(r_tacho == 0)
                 speed_rectif = 1;
             else
                 // quotient of the average speed until now over the theoritical speed
-                speed_rectif = ((CurrentTick()-tick_start)*speed_degree*CONST)/(1000*r_tacho);
+                speed_rectif = (t*speed_degree*CONST)/(1000*r_tacho);
             if(speed_rectif == 0 || speed_rectif < 0) speed_rectif = 1;
             if(speed_rectif > 100/power) speed_rectif = 100/power;
+
+            // smooth start
+            if(t < STABILISATION_TIME)
+                speed_rectif = (speed_rectif * t) / STABILISATION_TIME;
 
             // Modify the power of the motors accordingly
             OnRev(OUT_A, speed_rectif*power+coeff);
             OnFwd(OUT_B, speed_rectif*power-coeff);
         }
         Off(OUT_AB);
+
+        if(STOP) {
+            current_pos.angle_last_rotate = current_pos.theta;
+            current_pos.angle_cumul = 0;
+            current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
+            current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+        }
+        else
+            current_pos.angle_cumul += angle;
+            
 
         // Notify the termination of the rotation
         STOP = false;
@@ -98,7 +113,7 @@ void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {
         ROTATING = false;
 
 #ifdef CALIB
-        int rr = ((r_tacho-l_tacho)*125)/9;
+        long rr = ((r_tacho-l_tacho)*25)/18;
         Ds(1, "right" , r_tacho);
         Ds(2, "left", l_tacho);
         Ds(3, "10 turn", rr);
@@ -111,11 +126,10 @@ void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {
     void rotateRight(float angle, int power=ROTATE_DEFAULT_POWER) {
         const long l_tacho_start = MotorRotationCount(OUT_A);
         const long r_tacho_start = MotorRotationCount(OUT_B);
-        const long l_tacho_end = l_tacho_start + angle*CONST;
-        const long r_tacho_end = r_tacho_start - angle*CONST;
+        const long l_tacho_end = current_pos.l_tacho_last_rotate - (current_pos.angle_cumul - angle)*CONST;
+        const long r_tacho_end = current_pos.r_tacho_last_rotate + (current_pos.angle_cumul - angle)*CONST;
         long l_tacho = 0;
         long r_tacho = 0;
-        const float angle_start = current_pos.theta;
         long tick_start = CurrentTick();
         long tickPause = 0;
         float coeff, speed_rectif;
@@ -145,19 +159,31 @@ void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {
                     }
                 l_tacho = MotorRotationCount(OUT_A)-l_tacho_start;
                 r_tacho = MotorRotationCount(OUT_B)-r_tacho_start;
-                current_pos.theta = (angle_start - l_tacho/CONST);
+                current_pos.theta = (current_pos.angle_last_rotate - (l_tacho+l_tacho_start - current_pos.l_tacho_last_rotate)/CONST);
                 current_pos.theta = current_pos.theta % 360;
+                current_pos.angle_last_rotate = current_pos.angle_last_rotate - l_tacho/CONST;
                 coeff = (l_tacho + r_tacho)*ROTATE_RECTIF_COEFF;
+                long t = CurrentTick()-tick_start;
                 if(l_tacho == 0)
                     speed_rectif = 1;
                 else
-                    speed_rectif = ((CurrentTick()-tick_start)*speed_degree*CONST)/(1000*l_tacho);
+                    speed_rectif = (t*speed_degree*CONST)/(1000*l_tacho);
                 if(speed_rectif == 0 || speed_rectif < 0) speed_rectif = 1;
                 if(speed_rectif > 100/power) speed_rectif = 100/power;
+                if(t < STABILISATION_TIME)
+                    speed_rectif = (speed_rectif * t) / STABILISATION_TIME;
                 OnFwd(OUT_A, speed_rectif*power-coeff);
                 OnRev(OUT_B, speed_rectif*power+coeff);
             }
             Off(OUT_AB);
+            if(STOP) {
+                current_pos.angle_last_rotate = current_pos.theta;
+                current_pos.angle_cumul = 0;
+                current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
+                current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+            }
+            else
+                current_pos.angle_cumul -= angle;
             STOP = false;
             ROTATING = false;
 #ifdef CALIB

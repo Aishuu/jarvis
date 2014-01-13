@@ -1,7 +1,8 @@
 #include "constant.h"
 
-#include "movement2.nxc"
-
+#include "movement.nxc"
+#include "detect_ball.nxc"
+#include "arm.nxc"
 
 task check() {
      while(true){
@@ -14,8 +15,6 @@ task check() {
 task submain() {
 
     for(;;){
-    TextOut(0,LCD_LINE5,"blurp");
-    /*
        safeMoveTo(XMIN+23, YMAX-23);
        safeMoveTo(XMAX-23, YMAX-23);
        safeMoveTo(XMAX-23, YMIN+23);
@@ -23,15 +22,16 @@ task submain() {
        safeMoveTo(0,0);
        calibY();
        safeMoveTo(0,0);
-       calibX();*/
+       calibX();
     }
 }
 
-task main(){
+task main() {
     SetSensorTouch(IN_1);
     SetSensorLowspeed(IN_2);
     SetSensorUltrasonic(IN_3);
     SetSensorLight(IN_4);
     init_pos();
     Precedes(submain,check);
+
 }

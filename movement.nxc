@@ -46,6 +46,10 @@ void init_pos() {
      current_pos.theta = 90;
      current_pos.x = 0;
      current_pos.y = 0;
+     current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
+     current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+     current_pos.angle_last_rotate = 0;
+     current_pos.angle_cumul = 0;
 }
 
 void moveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
