@@ -14,6 +14,8 @@
 #define YMIN                        ( -1*30.6 )//cm
 #define DEFAULT_COLLISION_MARGIN    2.0        //cm
 
+#define CALIB_LENGTH                21.5       //cm
+
 //Some info on Jarvis' dimensions
 // <!> Point names based on how Jarvis looks when "current_pos.theta"=PI(rad)
 // <!> Values based on actual points' position when ""current_pos.theta"=0
@@ -28,13 +30,9 @@
    //Point:           UpR      UpL    LowR     LowL
 const float rho[]={JURRHO,  JURRHO, JLRRHO,  JLRRHO}; //static rho: geometrical parameter of jarvis (cm)
 const float the[]={JURTHE, -JURTHE, JLRTHE, -JLRTHE}; //static theta: geometrical parameter of jarvis (rad)
-      float xval[ NB_CTR_PTS ];                       //x values ->to be computed
-      float yval[ NB_CTR_PTS ];                       //y values ->to be computed
       float angle1[ NB_CTR_PTS+1 ];                   //lower angle value ->to be computed  -- the '+1' value is to facilitate min/max computation over several loops...
       float angle2[ NB_CTR_PTS+1 ];                   //upper angle value ->to be computed
-      float trans[ NB_CTR_PTS+1 ];                    //translation values ->to be computed
-float jar_x_min, jar_x_max,                           //jarvis extreme points in x...
-      jar_y_min, jar_y_max;                           //...and in y
+      float trans[ NB_CTR_PTS ];                      //translation values ->to be computed
 float inf_rot_lim,sup_rot_lim;                        //InBound rotation limits
 float inf_trans_lim,sup_trans_lim;                    //InBound translation limits
 enum TypeWall {XPOS=0,YPOS=1,XNEG=2,YNEG=3};          //wall designation
@@ -55,56 +53,20 @@ void moveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
 
      dx=x-current_pos.x;
      dy=y-current_pos.y;
-     
-     dist=sqrt(dx*dx+dy*dy);
 
-     if(dy==0 && dx<0)
-          angle=180;
-     else
-          angle=atan( dy/(dx+dist) )*360/PI;
-          
+     dist=sqrt(dx*dx+dy*dy);
+     angle=atan2(dy,dx)*180/PI;
+
      setTheta(angle);
      translate(dist);
      if(theta != NO_THETA_SPECIFIED)
         setTheta(theta);
 }
 
-void moveToPos(position dest) {
-     moveTo(dest.x,dest.y,dest.theta);
-}
-
-task checkTheta() {
-    for(;;) {
-        Wait(CHECK_THETA_RATE);
-        Acquire(movement_mutex);
-        Wait(500);
-        current_pos.theta = (90-compass+compass_start)%360;
-        Release(movement_mutex);
-    }
-}
-
 
 //////////////////////////////////
 // Boundary checks for movement //
 //////////////////////////////////
-void computeExtrPoints(float posx, float posy, float postheta) {
-     float theta_rad=postheta*PI/180;   //convert position bearing in radians because fuck ° that's why
-     for(int i=0;i<NB_CTR_PTS;i++) {  //compute (x,y) values
-        xval[i]=rho[i]*cos(the[i]+theta_rad)+posx;
-        yval[i]=rho[i]*sin(the[i]+theta_rad)+posy;
-     }
-
-     //find min/max
-     jar_x_min=ArrayMin(xval,NA,NA);
-     jar_x_max=ArrayMax(xval,NA,NA);
-     jar_y_min=ArrayMin(yval,NA,NA);
-     jar_y_max=ArrayMax(yval,NA,NA);
-
-} //computeExtrPoints
-
-void computeExtrPointsPos(position pos) {
-     computeExtrPoints(pos.x,pos.y,pos.theta);
-}
 
 float computeDist2Wall(TypeWall wall){
 //compute distance from tracked point to wall 'wall'
@@ -120,7 +82,7 @@ float computeDist2Wall(TypeWall wall){
            dist2Wall=XMAX-current_pos.x; break;
      }
      return dist2Wall;
-}
+} //computeDist2Wall
 
 void computeLimitTranslation(TypeWall wall) {
 //compute the limit translation until 'wall' is reached according to current position
@@ -128,16 +90,11 @@ void computeLimitTranslation(TypeWall wall) {
      float dist2Wall=computeDist2Wall(wall);
      //convert to rad and correct the value according to wall
      float theta_rad=current_pos.theta*PI/180-wall*PI/2;
-     //compute the limit translation for each contour point
-     for(int i=0;i<NB_CTR_PTS;i++){
+     for(int i=0;i<NB_CTR_PTS;i++){ //compute the limit translation for each contour point
      //          (actual distance of ctr_point to wall  )/(cos of the angle between bearing and direction of the wall)
-        trans[i]=(dist2wall-rho[i]*cos(theta_rad+the[i]))/cos(theta_rad);
+        trans[i]=(dist2Wall-rho[i]*cos(theta_rad+the[i]))/cos(theta_rad);
      }
 } //computeLimitTranslation
-
-bool checkInBound(float x_min, float x_max, float y_min, float y_max, float margin=DEFAULT_COLLISION_MARGIN) {
-     return (x_min-margin>XMIN) && (x_max+margin<XMAX) && (y_min-margin>YMIN) && (y_max+margin<YMAX);
-} //checkInBound
 
 void computeLimitAngles(TypeWall wall) {
 //compute the limit rotation angles until 'wall' is reached according to current position
@@ -180,32 +137,29 @@ void computeLimitAngles(TypeWall wall) {
      }//for loop (on points)
 } //computeLimitAngles
 
-// TODO : add in support to determine limit translations
-bool checkTranslationInBound(float posx, float posy, float margin=DEFAULT_COLLISION_MARGIN) {
-     // Implicit assumption: current position is legit (and valid)
-     //assuming theta will stay constant
-     //then the set of valid (x,y,THETA) is convex!
-     computeExtrPoints(posx,posy,current_pos.theta); //result stored in global variable
-     return checkInBound(jar_x_min,jar_x_max,jar_y_min,jar_y_max,margin);
-}
-
 bool checkTranslationInBound2(float translation2check, float margin=DEFAULT_COLLISION_MARGIN){
-   inf_trans_lim=0;
-   sup_trans_lim=0;
+   inf_trans_lim=-10000;
+   sup_trans_lim=10000;
    for(int wall=0;wall<4;wall++){ //loop on 4 walls
       //compute translation limit for 'wall'
       computeLimitTranslation(wall);
-      
-      //set initial/previous min value and find new min
-      trans[NB_CTR_PTS]=inf_trans_lim;
-      inf_trans_lim=ArrayMin(trans,NA,NA);
-      
-      //same for max value
-      trans[NB_CTR_PTS]=sup_trans_lim;
-      sup_trans_lim=ArrayMax(trans,NA,NA);
-   }
-   return (translation2check<=sup_trans_value) && (translation2check>=inf_trans_value)
-}
+      for(int k=0;k<NB_CTR_PTS;k++){ //loop on contour points
+         if(trans[k]>=0){
+            if(trans[k]<sup_trans_lim)
+               sup_trans_lim=trans[k];
+         } else {
+            if(trans[k]>inf_trans_lim)
+               inf_trans_lim=trans[k];
+         }
+      } //loop on contour points (k var)
+   } // loop on 4 walls
+
+   #ifdef DEBUG
+   Ds(2,"suptrans",sup_trans_lim);
+   Ds(3,"inftrans",inf_trans_lim);
+   #endif
+   return (translation2check<=sup_trans_lim) && (translation2check>=inf_trans_lim);
+} //checkTranslationInBound2
 
 bool checkRotationInBound(float rotation2check, float margin=DEFAULT_COLLISION_MARGIN) {
      // Implicit assumption: current position is legit (and valid)
@@ -237,6 +191,70 @@ bool checkRotationInBound(float rotation2check, float margin=DEFAULT_COLLISION_M
 /////////////////////////////
 // Safe movement functions //
 /////////////////////////////
+bool safeSetTheta(float theta2Set) {
+     float rotation = theta2Set-current_pos.theta;
+     
+     while(rotation<-180){
+         rotation+=360;
+     }
+     while(rotation>180){
+         rotation-=360;
+     }
+     
+     if( checkRotationInBound(rotation) ) {
+         rotate(rotation);
+         return true;
+     }
+     
+     if( rotation<0 ){
+         rotation+=360;
+     } else {
+         rotation-=360;
+     }
+     if( checkRotationInBound(rotation) ) {
+         rotate(rotation);
+         return true;
+     }
+     
+     return false;
+}
+
+void safeBackTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
+     float dx,dy,dist,angle;
+     MV_OUT_OF_BOUND=false;
+
+     dx=x-current_pos.x;
+     dy=y-current_pos.y;
+
+     dist=sqrt(dx*dx+dy*dy);
+
+     //standard angle computation
+     angle=atan2(dy,dx)*180/PI;
+     //change to face backward
+     angle=(angle+180) % 360;
+
+     if( ! safeSetTheta(angle) ) {
+        MV_OUT_OF_BOUND=true;
+        return;
+     }
+
+     if(checkTranslationInBound2(-dist))
+        translate(-dist);
+     else {
+        MV_OUT_OF_BOUND=true;
+        translate(inf_trans_lim+DEFAULT_COLLISION_MARGIN);
+     }
+
+     if(theta != NO_THETA_SPECIFIED)
+        if( ! safeSetTheta(theta) ) {
+           MV_OUT_OF_BOUND=true;
+           return;
+        }
+        
+     return;
+} //safeBackTo
+
+
 void safeMoveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
      float dx,dy,dist,angle;
      MV_OUT_OF_BOUND=false;
@@ -246,31 +264,91 @@ void safeMoveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
 
      dist=sqrt(dx*dx+dy*dy);
 
-     if(dy==0 && dx<0)
-          angle=180;
-     else
-          angle=atan( dy/(dx+dist) )*360/PI;
-          
-     if( checkRotationInBound(angle) )
-        setTheta(angle);
-     else
-        MV_OUT_OF_BOUND=true;
-        Wait(5000);
-        return;
-     if(checkTranslationInBound(x,y))
-        translate(dist);
-     else
-        MV_OUT_OF_BOUND=true;
-        Wait(5000);
-        return;
-     if(theta != NO_THETA_SPECIFIED)
-        if(checkRotationInBound(theta) )
-           setTheta(theta);
-        else
-           MV_OUT_OF_BOUND=true;
-           Wait(5000);
-           return;
-}
+     angle=atan2(dy,dx)*180/PI;
 
+     if( ! safeSetTheta(angle) ) {
+        safeBackTo(x,y,theta);
+        return;
+     }
+     
+     if(checkTranslationInBound2(dist))
+        translate(dist);
+     else {
+        MV_OUT_OF_BOUND=true;
+        translate(sup_trans_lim-DEFAULT_COLLISION_MARGIN);
+        return;
+     }
+     
+     if(theta != NO_THETA_SPECIFIED)
+        if( ! safeSetTheta(theta) ) {
+           MV_OUT_OF_BOUND=true;
+           return;
+        }
+
+     return;
+} //safeMoveTo
+
+
+/////////////
+//  Calib  //
+/////////////
+bool calibY(){
+    if(!safeSetTheta(90)){
+        safeMoveTo(0,0);
+    }
+    if(!safeSetTheta(90) || MV_OUT_OF_BOUND){
+       return false;
+    }
+    
+    while(! touch){
+       translate(-5);
+    }
+    STOP=true;
+    
+    current_pos.y=YMIN+CALIB_LENGTH;
+    return true;
+} //calibY
+
+bool calibXNEG(){
+    if(!safeSetTheta(0)){
+        safeMoveTo(0,0);
+    }
+    if(!safeSetTheta(0) || MV_OUT_OF_BOUND){
+       return false;
+    }
+
+    while(! touch){
+       translate(-5);
+    }
+    STOP=true;
+
+    current_pos.x=XMIN+CALIB_LENGTH;
+    return true;
+} //calibXNEG
+
+bool calibXPOS(){
+    if(!safeSetTheta(180)){
+        safeMoveTo(0,0);
+    }
+    if(!safeSetTheta(180) || MV_OUT_OF_BOUND){
+       return false;
+    }
+
+    while(! touch){
+       translate(-5);
+    }
+    STOP=true;
+
+    current_pos.x=XMAX-CALIB_LENGTH;
+    return true;
+} //calibXPOS
+
+bool calibX(){
+    if(current_pos.x<0){
+       return calibXNEG();
+    } else {
+       return calibXPOS();
+    }
+} //calibX
 
 #endif //movement.nxc

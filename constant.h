@@ -2,7 +2,7 @@
 #define CONSTANT_H
 
 #define touch SENSOR_1
-#define compass SensorHTCompass(IN_4)
+#define compass SensorHTCompass(IN_2)
 
 #define DEBUG
 

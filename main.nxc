@@ -1,16 +1,37 @@
 #include "constant.h"
 
-#include "movement.nxc"
-#include "detect_ball.nxc"
+#include "movement2.nxc"
 
-task main() {
-    SetSensorLowspeed(IN_4);
+
+task check() {
+     while(true){
+     Ds(1,"posx",current_pos.x);
+     Ds(2,"posy",current_pos.y);
+     Ds(3,"the",current_pos.theta);
+     }
+}
+
+task submain() {
+
+    for(;;){
+    TextOut(0,LCD_LINE5,"blurp");
+    /*
+       safeMoveTo(XMIN+23, YMAX-23);
+       safeMoveTo(XMAX-23, YMAX-23);
+       safeMoveTo(XMAX-23, YMIN+23);
+       safeMoveTo(XMIN+23, YMIN+23);
+       safeMoveTo(0,0);
+       calibY();
+       safeMoveTo(0,0);
+       calibX();*/
+    }
+}
+
+task main(){
+    SetSensorTouch(IN_1);
+    SetSensorLowspeed(IN_2);
     SetSensorUltrasonic(IN_3);
+    SetSensorLight(IN_4);
     init_pos();
-    //find_ball();
-    moveTo(60, 0);
-    moveTo(60, 60);
-    moveTo(0, 60);
-    moveTo(0, 0);
-    setTheta(90);
+    Precedes(submain,check);
 }
