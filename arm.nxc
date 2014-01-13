@@ -95,7 +95,7 @@ void slide() {
 
 
 
-
+/*
 task main() {
 
 	ResetRotationCount(OUT_C);
@@ -122,5 +122,5 @@ task main() {
 	
 
 }
-
+*/
 

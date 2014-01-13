@@ -1,7 +1,7 @@
 #include "constant.h"
 
 #include "movement.nxc"
-#include "detect_ball.nxc"
+//#include "detect_ball.nxc"
 #include "arm.nxc"
 
 task check() {
@@ -9,6 +9,7 @@ task check() {
      Ds(1,"posx",current_pos.x);
      Ds(2,"posy",current_pos.y);
      Ds(3,"the",current_pos.theta);
+     Wait(100);
      }
 }
 

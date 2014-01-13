@@ -159,8 +159,8 @@ bool checkTranslationInBound2(float translation2check, float margin=DEFAULT_COLL
    } // loop on 4 walls
 
    #ifdef DEBUG
-   Ds(2,"suptrans",sup_trans_lim);
-   Ds(3,"inftrans",inf_trans_lim);
+   Ds(4,"suptrans",sup_trans_lim);
+   Ds(5,"inftrans",inf_trans_lim);
    #endif
    return (translation2check<=sup_trans_lim) && (translation2check>=inf_trans_lim);
 } //checkTranslationInBound2
