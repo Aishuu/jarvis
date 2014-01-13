@@ -2,8 +2,9 @@
 #define CONSTANT_H
 
 #define touch Sensor(S1)
-#define compass SensorHTCompass(IN_4)
+#define compass SensorHTCompass(IN_2)
 #define ultras SensorUS(S3)
+#define light SensorRaw(IN_4)
 
 #define DEBUG
 
@@ -39,6 +40,10 @@ struct position {
     float theta;
     float x;
     float y;
+    long r_tacho_last_rotate;
+    long l_tacho_last_rotate;
+    float angle_last_rotate;
+    float angle_cumul;
 };
 
 

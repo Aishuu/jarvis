@@ -6,129 +6,58 @@
 #include "movement.nxc"
 #include "arm.nxc"
 
-#define DIST_BALL       15
-#define DIST_BALL_MAX   50
+#define DIST_BALL       10
+#define DIST_BALL_MAX   60
 #define ANGLE_BALL      70
 #define ANGLE_RECTIF    5
+#define RESOL           15
 
 int angle_init, angle_center;
-int range;
-
-task grabBall() {
-    hold(40);
-}
-
-
-void end_detect_ball() {
-    if(angle_init > current_pos.theta)
-        angle_init -= 360;
-    angle_center = ((angle_init + current_pos.theta)/2);
-    angle_center = angle_center%360;
-    if(angle_center > current_pos.theta+180)
-        angle_center -= 360;
-    if(current_pos.theta > angle_center+180)
-        angle_center += 360;
-    rotate(angle_center - current_pos.theta - ANGLE_RECTIF);
-    IS_HOLDING=false;
-    Wait(100);
-    release_arm(80);
-    Wait(1000);
-    start grabBall;
-    Wait(6000);
-    start throw;
-}
-
-void grab_and_send_ball(int x, int y) {
-    moveTo(x, y);
-    start grabBall;
-    moveTo(0,10);
-    setTheta(-90);
-    Wait(1000);
-    start throw;
-}
-
-task turn_find_no_ball() {
-    rotate(ANGLE_BALL, 20);
-}
-
-task monitor_no_ball() {
-    byte sen[3], min, min_prec;
-    sen[0] = 255;
-    sen[1] = 255;
-    sen[2] = 255;
-    min_prec = 255;
-
-    while((current_pos.theta - angle_init <= ANGLE_BALL) && ROTATING) {
-        sen[2] = sen[1];
-        sen[1] = sen[0];
-        sen[0] = ultras;
-        min = sen[0] < sen[1] ? sen[0] < sen[2] ? sen[0] : sen[2] : sen[1] < sen[2] ? sen[1] : sen[2];
-        //min = sen[0];
-        if(min < DIST_BALL_MAX && min-min_prec > DIST_BALL)
-            break;
-        min_prec = min;
-        if(current_pos.theta < angle_init)
-            angle_init -= 360;
-    }
-    STOP = true;
-    while(STOP)
-        Wait(100);
-    if(min < DIST_BALL_MAX && min-min_prec > DIST_BALL) {
-        range = min_prec;
-        end_detect_ball();
-    }
-    else
-        IS_HOLDING=false;
-}
-
-task monitor_ball() {
-    byte sen[3], min, min_prec;
-    sen[0] = 255;
-    sen[1] = 255;
-    sen[2] = 255;
-    min_prec = 255;
-
-    angle_init = current_pos.theta;
-    while((current_pos.theta - angle_init <= 360) && ROTATING) {
-        sen[2] = sen[1];
-        sen[1] = sen[0];
-        sen[0] = ultras;
-        min = sen[0] < sen[1] ? sen[0] < sen[2] ? sen[0] : sen[2] : sen[1] < sen[2] ? sen[1] : sen[2];
-        //min = sen[0];
-        if(min_prec < DIST_BALL_MAX && min_prec-min > DIST_BALL)
-            break;
-        min_prec = min;
-        if(current_pos.theta < angle_init)
-            angle_init -= 360;
-    }
-    STOP = true;
-    while(STOP)
-        Wait(100);
-    angle_init = current_pos.theta;
-    if(min_prec < DIST_BALL_MAX && min_prec-min > DIST_BALL) {
-        ROTATING = true;
-        start monitor_no_ball;
-        start turn_find_no_ball;
-    }
-    else
-        IS_HOLDING = false;
-}
+int nb_file;
 
 task turn_find_ball() {
     rotate(360, 15);
 }
 
-task task_hold() {
-    hold(100);
+int getDistanceToWall(int x, int y) {
+    int x1, x2, y1, y2;
+    x1 = x-XMIN;
+    x2 = XMAX-x;
+    y1 = y-YMIN;
+    y2 = YMAX-y;
+    return x1<x2 ? x1<y1 ? x1<y2 ? x1 : y2 : y1<y2 ? y1 : y2 : x2<y1 ? x2<y2 ? x2 : y2 : y1<y2 ? y1 : y2;
+}
+
+void monitor_ball() {
+    int i;
+    /*
+    nb_file++;
+    string filename = StrCat("dump", NumToStr(nb_file));
+    string s;
+    byte fileHandle;
+    short b_written;
+    DeleteFile(filename);
+    CreateFile(filename, 4096, fileHandle);
+    WriteLnString(fileHandle, "#theta\t\t\tradar", b_written);
+    */
+    for(i=0; i<360/RESOL; i++) {
+        rotate(RESOL);
+        Wait(500);
+        int r = ultras;
+        /*
+        s = StrCat(NumToStr(current_pos.theta), "\t\t\t", NumToStr(r));
+        WriteLnString(fileHandle, s, b_written);
+        */
+    }
 }
 
 void find_ball() {
-    angle_init = angle_center = 0;
-    start task_hold;
-    Wait(1000);
+    angle_init = 0;
+    angle_center = 0;
     ROTATING = true;
-    start turn_find_ball;
-    start monitor_ball;
+    nb_file = 0;
+    //start turn_find_ball;
+    monitor_ball();
     
 }
 

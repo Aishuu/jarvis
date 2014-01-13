@@ -18,6 +18,8 @@ void forward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
            angle,rectif,dist;     //local variables
 
      //init interesting values
+     current_pos.angle_last_rotate = current_pos.theta;
+     current_pos.angle_cumul = 0;
      x_dep=current_pos.x;
      y_dep=current_pos.y;
      theta_dep=current_pos.theta;
@@ -65,8 +67,11 @@ void forward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
          dist=DIAM*(l_rotc-l_rotc_i+r_rotc-r_rotc_i)/2*PI/360;
          current_pos.x=x_dep+dist*cos(theta_dep*PI/180); // cos/sin take rad input
          current_pos.y=y_dep+dist*sin(theta_dep*PI/180);
+         current_pos.r_tacho_last_rotate = r_rotc;
+         current_pos.l_tacho_last_rotate = l_rotc;
      }
      Off(OUT_AB);
+    STOP=false;
 } //forward
 
 void backward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
@@ -76,6 +81,8 @@ void backward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
      float x_dep,y_dep,theta_dep, //initial position
            angle,rectif,dist;     //local variables
 
+     current_pos.angle_last_rotate = current_pos.theta;
+     current_pos.angle_cumul = 0;
      x_dep=current_pos.x;
      y_dep=current_pos.y;
      theta_dep=current_pos.theta;
@@ -109,8 +116,11 @@ void backward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
          dist=DIAM*(l_rotc-l_rotc_i+r_rotc-r_rotc_i)/2*PI/360;  //dist is algebraic !!!
          current_pos.x=x_dep+dist*cos(theta_dep*PI/180);
          current_pos.y=y_dep+dist*sin(theta_dep*PI/180);
+         current_pos.r_tacho_last_rotate = r_rotc;
+         current_pos.l_tacho_last_rotate = l_rotc;
      }
      Off(OUT_AB);
+    STOP=false;
 } //backward
 
 void translate(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
