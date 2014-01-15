@@ -1,38 +1,24 @@
 #include "constant.h"
 
+#include "state.nxc"
 #include "movement.nxc"
-//#include "detect_ball.nxc"
 #include "arm.nxc"
+#include "calibration.nxc"
 
-task check() {
-     while(true){
-     Ds(1,"posx",current_pos.x);
-     Ds(2,"posy",current_pos.y);
-     Ds(3,"the",current_pos.theta);
-     Wait(100);
-     }
-}
-
-task submain() {
-
-    for(;;){
-       safeMoveTo(XMIN+23, YMAX-23);
-       safeMoveTo(XMAX-23, YMAX-23);
-       safeMoveTo(XMAX-23, YMIN+23);
-       safeMoveTo(XMIN+23, YMIN+23);
-       safeMoveTo(0,0);
-       calibY();
-       safeMoveTo(0,0);
-       calibX();
-    }
-}
+//#define CALIB
 
 task main() {
     SetSensorTouch(IN_1);
     SetSensorLowspeed(IN_2);
     SetSensorUltrasonic(IN_3);
     SetSensorLight(IN_4);
+#ifdef CALIB
+    calibrate_arm();
+    horiz();
+#else
     init_pos();
-    Precedes(submain,check);
-
+    init_arm();
+    init_calibrate();
+    mainLoop();
+#endif
 }

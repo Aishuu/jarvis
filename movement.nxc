@@ -42,13 +42,14 @@ enum TypeWall {XPOS=0,YPOS=1,XNEG=2,YNEG=3};          //wall designation
 // Functions //
 ///////////////
 void init_pos() {
+     Wait(500);
      compass_start = compass;
      current_pos.theta = 90;
      current_pos.x = 0;
      current_pos.y = 0;
      current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
      current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
-     current_pos.angle_last_rotate = 0;
+     current_pos.angle_last_rotate = 90;
      current_pos.angle_cumul = 0;
 }
 
