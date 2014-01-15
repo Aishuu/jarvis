@@ -37,6 +37,7 @@ float inf_rot_lim,sup_rot_lim;                        //InBound rotation limits
 float inf_trans_lim,sup_trans_lim;                    //InBound translation limits
 enum TypeWall {XPOS=0,YPOS=1,XNEG=2,YNEG=3};          //wall designation
 
+int debug=0;
 
 ///////////////
 // Functions //
@@ -117,17 +118,19 @@ void computeLimitAngles(TypeWall wall) {
 
            //set relative zero: current angle (rad) with correction depending on 'wall'
            rel_zero=current_pos.theta*PI/180+the[i]-wall*PI/2;
-           while(rel_zero<0)
+           while(rel_zero<0) {
               rel_zero+=2*PI; //we want rel_zero in [0, 2PI[ -- actually we want angle1<rel_zero<angle2
+           }
+
            #ifndef DEBUG
            if(rel_zero<angle1[i] || rel_zero>angle2[i] || angle2[i]-angle1[i]>2*PI) {
            #endif
               //something went wrong (code or model)
-              Ds(5,"point",i);
+/*              Ds(5,"point",i);
               Ds(6,"angle1",angle1[i]);
               Ds(7,"angle2",angle2[i]);
               Ds(8,"rel_z",rel_zero);
-              Wait(10000);
+              Wait(10000);*/
            #ifndef DEBUG
            }
            #endif
@@ -162,6 +165,7 @@ bool checkTranslationInBound2(float translation2check, float margin=DEFAULT_COLL
    #ifdef DEBUG
    Ds(4,"suptrans",sup_trans_lim);
    Ds(5,"inftrans",inf_trans_lim);
+   Wait(1000);
    #endif
    return (translation2check<=sup_trans_lim) && (translation2check>=inf_trans_lim);
 } //checkTranslationInBound2
@@ -173,10 +177,10 @@ bool checkRotationInBound(float rotation2check, float margin=DEFAULT_COLLISION_M
      //(yup, the author prefers manipulating convex sets)
      inf_rot_lim=0;
      sup_rot_lim=0;
+
      for(int wall=0;wall<4;wall++){ //loop on 4 walls
         //compute limit rotation angles for 'wall'
         computeLimitAngles(wall);
-
         //add in initial/previous values to find min/max
         angle1[NB_CTR_PTS]=inf_rot_lim;
         angle2[NB_CTR_PTS]=sup_rot_lim;
@@ -185,10 +189,11 @@ bool checkRotationInBound(float rotation2check, float margin=DEFAULT_COLLISION_M
         inf_rot_lim=ArrayMin(angle1,NA,NA);
         sup_rot_lim=ArrayMax(angle2,NA,NA);
      }
-     
+
      //convert from rad to °
      inf_rot_lim=inf_rot_lim*180/PI;
      sup_rot_lim=sup_rot_lim*180/PI;
+
      return (rotation2check<=sup_rot_lim) && (rotation2check>=inf_rot_lim);
 } //checkRotationInBound
 
@@ -205,26 +210,56 @@ bool safeSetTheta(float theta2Set) {
      while(rotation>180){
          rotation-=360;
      }
-     
+
      if( checkRotationInBound(rotation) ) {
          rotate(rotation);
          return true;
      }
-     
+
      if( rotation<0 ){
          rotation+=360;
      } else {
          rotation-=360;
      }
+
      if( checkRotationInBound(rotation) ) {
          rotate(rotation);
          return true;
      }
-     
+
      return false;
 }
 
-void safeBackTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
+bool setMidPos() {
+     float midRot, midTrans;
+     //dumb check to make jarvis compute inf_rot_lim and sup_rot_lim
+     checkTranslationInBound2(0);
+     //compute mid rotation angle
+     midRot=(inf_rot_lim+sup_rot_lim)/2.;
+     ClearLine(LCD_LINE6);
+     TextOut(0,LCD_LINE6,"setMidPos");
+     ClearLine(LCD_LINE7);
+     TextOut(0,LCD_LINE7,"midRot");
+     NumOut(50,LCD_LINE7,midRot);
+     while(! touch) {};
+     
+     rotate(midRot);
+     
+     //dumb check to make jarvis compute inf_trans_lim and sup_trans_lim
+     checkTranslationInBound2(0);
+     //compute mid translation distance
+     midTrans=(inf_trans_lim+sup_trans_lim)/2.;
+     ClearLine(LCD_LINE7);
+     TextOut(0,LCD_LINE7,"midTra");
+     NumOut(50,LCD_LINE7,midTrans);
+     while(! touch) {};
+
+     translate(midTrans);
+     
+     return true;
+}
+
+bool safeBackTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
      float dx,dy,dist,angle;
      MV_OUT_OF_BOUND=false;
 
@@ -240,7 +275,7 @@ void safeBackTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
 
      if( ! safeSetTheta(angle) ) {
         MV_OUT_OF_BOUND=true;
-        return;
+        return false;
      }
 
      if(checkTranslationInBound2(-dist))
@@ -248,19 +283,20 @@ void safeBackTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
      else {
         MV_OUT_OF_BOUND=true;
         translate(inf_trans_lim+DEFAULT_COLLISION_MARGIN);
+        return false;
      }
 
      if(theta != NO_THETA_SPECIFIED)
         if( ! safeSetTheta(theta) ) {
            MV_OUT_OF_BOUND=true;
-           return;
+           return false;
         }
         
-     return;
+     return true;
 } //safeBackTo
 
 
-void safeMoveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
+bool safeMoveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
      float dx,dy,dist,angle;
      MV_OUT_OF_BOUND=false;
 
@@ -272,25 +308,33 @@ void safeMoveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
      angle=atan2(dy,dx)*180/PI;
 
      if( ! safeSetTheta(angle) ) {
-        safeBackTo(x,y,theta);
-        return;
-     }
-     
-     if(checkTranslationInBound2(dist))
-        translate(dist);
-     else {
         MV_OUT_OF_BOUND=true;
-        translate(sup_trans_lim-DEFAULT_COLLISION_MARGIN);
-        return;
+        ClearLine(LCD_LINE6);
+        TextOut(0,LCD_LINE6,"after theta check");
+        Wait(1000);
+        setMidPos();
+        return false;
+     }
+
+     if(checkTranslationInBound2(dist)) {
+        translate(dist);
+     } else {
+        MV_OUT_OF_BOUND=true;
+        ClearLine(LCD_LINE6);
+        TextOut(0,LCD_LINE6,"after trans check");
+        Wait(1000);
+        setMidPos();
+//        translate(sup_trans_lim-DEFAULT_COLLISION_MARGIN);
+        return false;
      }
      
      if(theta != NO_THETA_SPECIFIED)
         if( ! safeSetTheta(theta) ) {
            MV_OUT_OF_BOUND=true;
-           return;
+           return false;
         }
-
-     return;
+        
+     return true;
 } //safeMoveTo
 
 
