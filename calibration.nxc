@@ -1,41 +1,52 @@
+#ifndef CALIBRATION_NXC
+#define CALIBRATION_NXC
+
 #include "constant.h"
+
 #include "movement.nxc"
+#include "geometry.nxc"
 
-//the two following functions detect the down wall (turn2, detect2)
-task turn2(){
-     setTheta(0);
-     translate(-220);
-}
-task detect2(){
-     //if the robot touche the left wall
-     until(touch);
-     STOP = true;
-    while(STOP)
-        Wait(100);
-    // TODO: correct with jarvis' size
-    current_pos.y = YMIN;
-}
+#define CALIB_DELAY     20000
 
-//the two following functions detect the left wall (turn1, detect1)
-task turn1(){
-     setTheta(-90);
-     translate(-220);
-}
-task detect1(){
-     //if the robot touche the left wall
+long last_calibration;
+
+task detectWall(){
+     //if the robot touches the wall
      until(touch)
         Wait(100);
-    current_pos.x = XMIN;
      STOP = true;
-     while(STOP)
+}
+
+void init_calibrate() {
+    last_calibration = CurrentTick();
+}
+
+bool mustCalibrate() {
+    long t = CurrentTick();
+    return (t - last_calibration > CALIB_DELAY);
+}
+
+void calibrate() {
+    Wait(1000);
+    current_pos.theta = 450 - (compass - compass_start);
+    current_pos.theta = current_pos.theta % 360;
+    hold();
+    moveTo(0,0);
+    setTheta(0);
+    calibrate_arm();
+    start detectWall;
+    translate(-220);
+    while(STOP)
+       Wait(100);
+    current_pos.x = XMIN+GEO_BACK_HALF;
+    translate(5);
+    setTheta(90);
+    start detectWall;
+    translate(-220);
+    while(STOP)
         Wait(100);
-     translate(3);
-     Precedes(turn2, detect2);
+    current_pos.y = YMIN+GEO_BACK_HALF;
+    last_calibration = CurrentTick();
 }
 
-
-task main(){
-     SetSensor(IN_1,SENSOR_TOUCH);
-     Precedes(turn1, detect1);
-}
-
+#endif          // calibration.nxc

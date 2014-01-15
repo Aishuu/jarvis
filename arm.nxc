@@ -1,126 +1,101 @@
-#define HOLD_VALUE -958
-#define REL_VALUE -6
-#define GRAB_VALUE -359
-#define SLIDE_VALUE -1350
-#define BALL_THRES 20
+#ifndef ARM_NXC
+#define ARM_NXC
+
+#define REL_VALUE           0
+#define GRAB_VALUE          ( -435 )
+#define HOLD_VALUE          ( -920 )
+#define HORIZONTAL_VALUE    ( -1080 )
+#define SLIDE_VALUE         ( -1290 )
+#define BLOCK_VALUE         ( -1480 )
+
+#define RATIO_COGS          8
+#define THRES_ARM           5
 
 #include "constant.h"
 
-task disp() {
-	long rc;
-	for(;;) {
-		rc=MotorRotationCount(OUT_C);
-		ClearLine(LCD_LINE1);
-		NumOut(0,LCD_LINE1,rc);
-		Wait(100);
-	}
+long rc_rel;
+bool found_arm;
+
+void init_arm() {
+    rc_rel = MotorRotationCount(OUT_C)-HORIZONTAL_VALUE;
+    current_pos.angle_arm = (GRAB_VALUE-HORIZONTAL_VALUE)/RATIO_COGS;
 }
 
-task manual_ctrl(){
-	 for(;;) {
-		if(ButtonPressed(BTNRIGHT, false))
-			OnFwd(OUT_C, 20);
-		else if(ButtonPressed(BTNLEFT, false))
-			OnRev(OUT_C, 20);
-		else
-			Off(OUT_C);
-	}
+task monitor_arm() {
+    long rc1, rc2;
+    rc1 = MotorRotationCount(OUT_C);
+    do {
+        rc2 = rc1;
+        Wait(200);
+        rc1 = MotorRotationCount(OUT_C);
+    } while(rc2 - rc1 > THRES_ARM);
+    found_arm = true;
+}
+
+void calibrate_arm() {
+    OnRev(OUT_C, 20);
+    found_arm = false;
+    start monitor_arm;
+    until(found_arm)
+        Wait(100);
+    rc_rel = MotorRotationCount(OUT_C)-BLOCK_VALUE;
+    current_pos.angle_arm = (GRAB_VALUE-BLOCK_VALUE)/RATIO_COGS;
+}
+
+void lower_arm_to(long rc_end, int power) {
+    long rc;
+    do {
+        rc = MotorRotationCount(OUT_C)-rc_rel;
+        OnFwd(OUT_C, power);       
+        Wait(100);
+    } while(rc < rc_end);
+    Off(OUT_C);
+    if(rc > GRAB_VALUE)
+        current_pos.angle_arm = 0;
+    else
+        current_pos.angle_arm = (GRAB_VALUE-rc)/RATIO_COGS;
+}
+
+void raise_arm_to(long rc_end, int power) {
+    long rc;
+    do {
+        rc = MotorRotationCount(OUT_C)-rc_rel;
+        OnRev(OUT_C, power);       
+        Wait(100);
+    } while(rc > rc_end);
+    Off(OUT_C);
+    if(rc > GRAB_VALUE)
+        current_pos.angle_arm = 0;
+    else
+        current_pos.angle_arm = (GRAB_VALUE-rc)/RATIO_COGS;
+}
+
+void move_arm_to(long rc_end, int power=50) {
+    long rc = MotorRotationCount(OUT_C)-rc_rel;
+    if(rc < rc_end)
+        lower_arm_to(rc_end, power);
+    else
+        raise_arm_to(rc_end, power);
 }
 
 void catch_ball() {
-	long rc;
-	rc=MotorRotationCount(OUT_C);
-	
-	while(rc >= GRAB_VALUE) {
-
-		OnRev(OUT_C,20);
-		rc=MotorRotationCount(OUT_C);
-	}
-	
-
-	Off(OUT_C);
-	Wait(500);
-	PlayTone(400, 500);
+    move_arm_to(GRAB_VALUE);
 }
 
-
 void hold() {
-	long rc;
-	rc=MotorRotationCount(OUT_C);
-	
-	while(rc >= HOLD_VALUE) {
-
-		OnRev(OUT_C,20);
-		rc=MotorRotationCount(OUT_C);
-	}
-	
-
-	Off(OUT_C);
-	Wait(500);
-	PlayTone(400, 500);
+    move_arm_to(HOLD_VALUE);
 }
 
 void release_arm() {
-	long rc;
-	rc=MotorRotationCount(OUT_C);
-	
-	while(rc <= REL_VALUE) {
-
-		OnFwd(OUT_C,20);
-		rc=MotorRotationCount(OUT_C);
-	}
-	
-
-	Off(OUT_C);
-	Wait(500);
-	PlayTone(400, 500);
+    move_arm_to(REL_VALUE);
 }
 
 void slide() {
-	long rc;
-	rc=MotorRotationCount(OUT_C);
-	
-	while(rc >= SLIDE_VALUE) {
-
-		OnRev(OUT_C,20);
-		rc=MotorRotationCount(OUT_C);
-	}
-	
-
-	Off(OUT_C);
-	Wait(500);
-	PlayTone(500, 500);
+    move_arm_to(SLIDE_VALUE);
 }
 
-
-
-
-
-task main() {
-
-	ResetRotationCount(OUT_C);
-	SetSensorLight(IN_4);
-	int s1,s2;
-	start disp;
-	start manual_ctrl;
-	hold();
-	Wait(1000);
-	release_arm();
-	
-	catch_ball();
-	Wait(200);
-	s1=light;
-	hold();
-	s2=light;
-	if(abs(s2-s1)>BALL_THRES){
-		//TODO MOVE TO NET
-		slide();
-	}else{
-		//TODO KEEP LOOKING
-	}
-
-	
-
+void horiz() {
+    move_arm_to(HORIZONTAL_VALUE, 10);
 }
 
-
+#endif          // arm.nxc

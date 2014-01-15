@@ -9,31 +9,31 @@
 #define DEBUG
 
 #ifdef DEBUG
-#define D(i,s) ClearLine(LCD_LINE##i); NumOut(1, LCD_LINE##i, s)
-#define Ds(i,c,s) _print(LCD_LINE##i, c, s)
-#define DGraph(i,m,n) _graph(i, m, n)
-void _print(int i, string com, int s) {
-    ClearLine(i);
-    TextOut(0, i, com);
-    NumOut(50, i, s);
+#define D(_i,_s) ClearLine(LCD_LINE##_i); NumOut(1, LCD_LINE##_i, _s)
+#define Ds(_i,_c,_s) _print(LCD_LINE##_i, _c, _s)
+#define DGraph(_i,_m,_n) _graph(_i, _m, _n)
+void _print(int _i, string _com, int _s) {
+    ClearLine(_i);
+    TextOut(0, _i, _com);
+    NumOut(50, _i, _s);
 }
 int _debug_x = 0;
 int _debug_points[100];
-void _graph(int i, int max, int min) {
-    _debug_points[_debug_x] = 64-((i-min)*64)/(max-min);
+void _graph(int _i, int _max, int _min) {
+    _debug_points[_debug_x] = 64-((_i-_min)*64)/(_max-_min);
     ClearScreen();
-    for(int c=0;c<100;c++) {
-        if(_debug_points[c]<0 || _debug_points[c]>64)
+    for(int _c=0;_c<100;_c++) {
+        if(_debug_points[_c]<0 || _debug_points[_c]>64)
             break;
-        PointOut(c, _debug_points[c]);
+        PointOut(_c, _debug_points[_c]);
     }
     _debug_x++;
     _debug_x=_debug_x%100;
 }
 #else
-#define D(i,s)
-#define Ds(i,c,s)
-#define DGraph(i,m,n)
+#define D(_i,_s)
+#define Ds(_i,_c,_s)
+#define DGraph(_i,_m,_n)
 #endif
 
 struct position {
@@ -44,10 +44,11 @@ struct position {
     long l_tacho_last_rotate;
     float angle_last_rotate;
     float angle_cumul;
+    float angle_arm;
 };
 
 
-bool MV_OUT_OF_BOUND;   // set to true when going out of bond
+bool MV_OUT_OF_BOUND;   // set to true when going out of bound
 bool STOP;              // set to true when one want to interrupt a movement
 bool PAUSE;             // set to true if one want to pause a movement
 bool ROTATING;          // set to true when jarvis is rotating

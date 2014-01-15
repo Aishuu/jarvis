@@ -1,0 +1,63 @@
+#ifndef GEOMETRY_NXC
+#define GEOMETRY_NXC
+
+#include "constant.h"
+
+#define GEO_LEFT_WING       12.7
+#define GEO_RIGHT_WING      12.0
+#define GEO_BACK_HALF       18.9
+#define GEO_FRONT_HALF      7.7
+#define GEO_PIVOT_HEIGHT    20.4
+#define GEO_PIVOT_Y         1.8
+#define GEO_ARM_LENGTH      20.3
+#define GEO_ARM_WIDTH       13.0
+#define GEO_ARM_LEFT_WING   4.9
+#define GEO_ARM_RIGHT_WING  8.3
+
+#define WALL_HEIGHT         8.2
+#define NET_HEIGHT          15.2
+
+
+void getCartesianBoundaries(float &tabx[], float &taby[]) {
+    tabx[0] = -GEO_LEFT_WING;
+    tabx[1] = -GEO_LEFT_WING;
+    taby[1] = -GEO_BACK_HALF;
+    tabx[2] = GEO_RIGHT_WING;
+    taby[2] = -GEO_BACK_HALF;
+    tabx[3] = GEO_RIGHT_WING;
+    int arm_height = GEO_PIVOT_HEIGHT - GEO_ARM_LENGTH*cos((current_pos.angle_arm*PI)/180);
+    if(arm_height > NET_HEIGHT) {
+        taby[0] = GEO_FRONT_HALF;
+        taby[3] = GEO_FRONT_HALF;
+        tabx[4] = tabx[0];
+        taby[4] = taby[0];
+        tabx[5] = tabx[3];
+        taby[5] = taby[3];
+    }
+    else if(arm_height > WALL_HEIGHT) {
+        taby[0] = GEO_FRONT_HALF;
+        taby[3] = GEO_FRONT_HALF;
+        tabx[4] = -GEO_ARM_LEFT_WING;
+        taby[4] = (GEO_PIVOT_Y+(GEO_ARM_LENGTH+GEO_ARM_WIDTH)*sin((current_pos.angle_arm*PI)/180));
+        tabx[5] = GEO_ARM_RIGHT_WING;
+        taby[5] = taby[4];
+    }
+    else {
+        taby[0] = (GEO_PIVOT_Y+(GEO_ARM_LENGTH+GEO_ARM_WIDTH)*sin((current_pos.angle_arm*PI)/180));
+        taby[3] = taby[0];
+        tabx[4] = -GEO_LEFT_WING;
+        taby[4] = taby[0];
+        tabx[5] = GEO_RIGHT_WING;
+        taby[5] = taby[0];
+    }
+}
+
+float getDistanceFromWallToRaiseArm() {
+    return sqrt(GEO_ARM_LENGTH*GEO_ARM_LENGTH-(GEO_PIVOT_HEIGHT-WALL_HEIGHT)*(GEO_PIVOT_HEIGHT-WALL_HEIGHT));
+}
+
+float getDistanceFromNetToRaiseArm() {
+    return sqrt(GEO_ARM_LENGTH*GEO_ARM_LENGTH-(GEO_PIVOT_HEIGHT-NET_HEIGHT)*(GEO_PIVOT_HEIGHT-NET_HEIGHT));
+}
+
+#endif      // geometry.nxc

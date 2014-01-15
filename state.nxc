@@ -1,0 +1,107 @@
+#ifndef STATE_NXC
+#define STATE_NXC
+
+#include "constant.h"
+
+#include "movement.nxc"
+#include "detect_ball.nxc"
+#include "arm.nxc"
+#include "calibration.nxc"
+#include "geometry.nxc"
+
+#define BALL_LIGHT_THRES 20
+
+enum State {    SCAN=0,
+                MOVE_TO_BALL=1,
+                RANDOM_MOVE=2,
+                MUST_CALIB=3,
+                RAISE_ARM=4,
+                SLIDE_BALL=5,
+                GO_TO_CENTER=6,
+                CALIB=7 };
+
+safecall void mainLoop() {
+    State state = SLIDE_BALL;
+    float ball_found_x = 0, ball_found_y = 0;
+    float x,y;
+    int s1, s2;
+    int norm;
+    bool ball_found;
+    float dist_from_wall, min_dist_from_wall;
+    for(;;) {
+        switch(state) {
+            case SCAN:
+                ClearLine(0); TextOut(0, 0, "State : SCAN");
+                hold();
+                find_ball(ball_found, ball_found_x, ball_found_y);
+                if(!ball_found)
+                    state = RANDOM_MOVE;
+                else
+                    state = MOVE_TO_BALL;
+                break;
+            case RANDOM_MOVE:
+                ClearLine(0); TextOut(0, 0, "State : RANDOM_MOVE");
+                hold();
+                x = Random(XMAX-XMIN)+XMIN;
+                y = Random(YMAX-YMIN)+YMIN;
+                moveTo(x,y);
+                state = MUST_CALIB;
+                break;
+            case MOVE_TO_BALL:
+                ClearLine(0); TextOut(0, 0, "State : MOVE_TO_BALL");
+                hold();
+                norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
+                x = ball_found_x + 15*(current_pos.x-ball_found_x)/norm;
+                y = ball_found_y + 15*(current_pos.y-ball_found_y)/norm;
+                moveTo(x,y);
+                release_arm();
+                x = ball_found_x + (GEO_FRONT_HALF+GEO_ARM_WIDTH)*(current_pos.x-ball_found_x)/norm;
+                y = ball_found_y + (GEO_FRONT_HALF+GEO_ARM_WIDTH)*(current_pos.y-ball_found_y)/norm;
+                moveTo(x, y);
+                state = RAISE_ARM;
+                break;
+            case RAISE_ARM:
+                ClearLine(0); TextOut(0, 0, "State : RAISE_ARM");
+                catch_ball();
+                s1 = light;
+                hold();
+                s2 = light;
+                if(abs(s1-s2) > BALL_LIGHT_THRES)
+                    state = SLIDE_BALL;
+                else
+                    state = MUST_CALIB;
+                break;
+            case SLIDE_BALL:
+                ClearLine(0); TextOut(0, 0, "State : SLIDE_BALL");
+                moveTo(0, YMAX-23);
+                setTheta(270);
+                translate(-3);
+                slide();
+                Wait(1500);
+                state = GO_TO_CENTER;
+                break;
+            case GO_TO_CENTER:
+                ClearLine(0); TextOut(0, 0, "State : GO_TO_CENTER");
+                moveTo(0,0);
+                hold();
+                state = MUST_CALIB;
+                break;
+            case MUST_CALIB:
+                ClearLine(0); TextOut(0, 0, "State : MUST_CALIB");
+                if(mustCalibrate())
+                    state = CALIB;
+                else
+                    state = SCAN;
+                break;
+            case CALIB:
+                ClearLine(0); TextOut(0, 0, "State : CALIB");
+                hold();
+                calibrate();
+                moveTo(0,0);
+                state = SCAN;
+                break;
+        }
+    }
+}
+
+#endif          // state.nxc
