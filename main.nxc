@@ -17,9 +17,10 @@ task submain() {
 
     for(;;){
        safeMoveTo(XMIN+23, YMAX-23);
-       safeMoveTo(XMAX-23, YMAX-23);
-       safeMoveTo(XMAX-23, YMIN+23);
-       safeMoveTo(XMIN+23, YMIN+23);
+       if (safeMoveTo(XMAX-23, YMAX-23) ) {
+          if (safeMoveTo(XMAX-23, YMIN+23) )
+             if (safeMoveTo(XMIN+23, YMIN+23) )
+       }
        safeMoveTo(0,0);
        calibY();
        safeMoveTo(0,0);

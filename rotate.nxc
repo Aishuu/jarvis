@@ -161,7 +161,6 @@ void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {
                 r_tacho = MotorRotationCount(OUT_B)-r_tacho_start;
                 current_pos.theta = (current_pos.angle_last_rotate - (l_tacho+l_tacho_start - current_pos.l_tacho_last_rotate)/CONST);
                 current_pos.theta = current_pos.theta % 360;
-                current_pos.angle_last_rotate = current_pos.angle_last_rotate - l_tacho/CONST;
                 coeff = (l_tacho + r_tacho)*ROTATE_RECTIF_COEFF;
                 long t = CurrentTick()-tick_start;
                 if(l_tacho == 0)
