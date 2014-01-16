@@ -51,14 +51,20 @@ void monitor_ball() {
     }
 }
 
-void find_ball() {
+void find_ball(bool &ball_found, float &ball_found_x, float &ball_found_y) {
+    /*
     angle_init = 0;
     angle_center = 0;
     ROTATING = true;
     nb_file = 0;
     //start turn_find_ball;
+    */
     monitor_ball();
     
+    // TODO: dummy implementation here
+    ball_found = true;
+    ball_found_x = 20;
+    ball_found_y = 45;
 }
 
 #endif      // detect_ball.nxc

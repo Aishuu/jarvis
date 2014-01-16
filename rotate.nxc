@@ -11,7 +11,7 @@
 #define SLOPE_POWER_SPEED       2.933               //  These values are chosen so that a power of 10 correspond to a anglular speed of 10°/s
 #define ORD_POWER_SPEED         19.333              //  and a power of 100 correspond to an angular speed of 274°/s (which should be the maximum for the motors)
 #define STABILISATION_TIME      500                 // Delay for Jarvis to a uniform rotation speed
-#define CONST 2.0513                               // Coeff tacho/angle_robot
+#define CONST                   2.0513              // Coeff tacho/angle_robot
 
 //#define CALIB                                     // Used to calibrate the constant
 
