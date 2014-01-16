@@ -73,18 +73,18 @@ void moveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
 // Boundary checks for movement //
 //////////////////////////////////
 
-float computeDist2Wall(TypeWall wall){
+float computeDist2Wall(TypeWall wall, float x=current_pos.x, float y=current_pos.y){
 //compute distance from tracked point to wall 'wall'
      float dist2Wall;
      switch(wall){
         case YPOS:
-           dist2Wall=YMAX-current_pos.y; break;
+           dist2Wall=YMAX-y; break;
         case XNEG:
-           dist2Wall=current_pos.x-XMIN; break;
+           dist2Wall=x-XMIN; break;
         case YNEG:
-           dist2Wall=current_pos.y-YMIN; break;
+           dist2Wall=y-YMIN; break;
         default: //XPOS
-           dist2Wall=XMAX-current_pos.x; break;
+           dist2Wall=XMAX-x; break;
      }
      return dist2Wall;
 } //computeDist2Wall
