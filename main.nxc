@@ -15,6 +15,7 @@ task main() {
     SetSensorLight(S4);
 #ifdef CALIB
     calibrate_arm();
+    Wait(500);
     horiz();
     rotate(10);
 #else

@@ -2,11 +2,11 @@
 #define ARM_NXC
 
 #define REL_VALUE           0
-#define GRAB_VALUE          ( -435 )
-#define HOLD_VALUE          ( -980 )
-#define HORIZONTAL_VALUE    ( -1080 )
-#define SLIDE_VALUE         ( -1290 )
-#define BLOCK_VALUE         ( -1480 )
+#define GRAB_VALUE          ( -604 )
+#define HOLD_VALUE          ( -1082 )
+#define HORIZONTAL_VALUE    ( -1245 )
+#define SLIDE_VALUE         ( -1455 )
+#define BLOCK_VALUE         ( -1600 )
 
 #define RATIO_COGS          8
 #define THRES_ARM           5
@@ -74,7 +74,7 @@ void slide() {
 }
 
 void horiz() {
-    move_arm_to(HORIZONTAL_VALUE, 10);
+    move_arm_to(HORIZONTAL_VALUE, 20);
 }
 
 task monitor_arm() {

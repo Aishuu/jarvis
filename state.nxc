@@ -4,7 +4,7 @@
 #include "constant.h"
 
 #include "movement.nxc"
-#include "detect_ball.nxc"
+#include "scan.nxc"
 #include "arm.nxc"
 #include "calibration.nxc"
 #include "geometry.nxc"
@@ -34,11 +34,12 @@ safecall void mainLoop() {
     for(;;) {
         #ifdef DEBUG
         Ds(3, "theta", current_pos.theta);
-        Wait(1000);
         c = 450 - (compass-compass_start);
         c = c % 360;
         Ds(4, "compass", c);
-        Wait(2000);
+        #endif
+        #ifdef WAIT_STATE
+        Wait(3000);
         #endif
         switch(state) {
             case SCAN:

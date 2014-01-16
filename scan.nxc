@@ -79,7 +79,7 @@ void getScanVal(float &dist, float &theta) {
    Wait(1000);
    dist=ultras;
    #ifdef SCAN_COMPASS
-   theta=450+compass_start-compass;
+   theta=450-(compass-compass_start);
    #else
    theta=current_pos.theta;
    #endif
@@ -103,13 +103,15 @@ bool scanStep(float &ball_x, float &ball_y){
    }
    dist2Wall=ArrayMin(tmp,NA,NA);
    Ds(6,"dist2",dist2Wall);
+
    
    corr=theta %90;
    if(corr>45){
       corr=90-corr;
    }
+   corr=1+corr/45.;
    
-   if(dist2Wall>BALL_THRESH*) {
+   if(dist2Wall>BALL_THRESH*corr) {
       return true;
    } else {
       return false;
