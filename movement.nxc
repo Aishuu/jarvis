@@ -43,7 +43,7 @@ int debug=0;
 // Functions //
 ///////////////
 void init_pos() {
-     Wait(500);
+     Wait(1000);
      compass_start = compass;
      current_pos.theta = 90;
      current_pos.x = 0;

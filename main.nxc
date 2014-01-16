@@ -1,20 +1,22 @@
 #include "constant.h"
 
+#ifndef CALIB
 #include "state.nxc"
+#include "calibration.nxc"
+#endif
+
 #include "movement.nxc"
 #include "arm.nxc"
-#include "calibration.nxc"
-
-//#define CALIB
 
 task main() {
-    SetSensorTouch(IN_1);
-    SetSensorLowspeed(IN_2);
-    SetSensorUltrasonic(IN_3);
-    SetSensorLight(IN_4);
+    SetSensorTouch(S1);
+    SetSensorLowspeed(S2);
+    SetSensorUltrasonic(S3);
+    SetSensorLight(S4);
 #ifdef CALIB
     calibrate_arm();
     horiz();
+    rotate(10);
 #else
     init_pos();
     init_arm();

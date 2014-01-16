@@ -3,7 +3,7 @@
 
 #define REL_VALUE           0
 #define GRAB_VALUE          ( -435 )
-#define HOLD_VALUE          ( -920 )
+#define HOLD_VALUE          ( -980 )
 #define HORIZONTAL_VALUE    ( -1080 )
 #define SLIDE_VALUE         ( -1290 )
 #define BLOCK_VALUE         ( -1480 )
@@ -19,27 +19,6 @@ bool found_arm;
 void init_arm() {
     rc_rel = MotorRotationCount(OUT_C)-HORIZONTAL_VALUE;
     current_pos.angle_arm = (GRAB_VALUE-HORIZONTAL_VALUE)/RATIO_COGS;
-}
-
-task monitor_arm() {
-    long rc1, rc2;
-    rc1 = MotorRotationCount(OUT_C);
-    do {
-        rc2 = rc1;
-        Wait(200);
-        rc1 = MotorRotationCount(OUT_C);
-    } while(rc2 - rc1 > THRES_ARM);
-    found_arm = true;
-}
-
-void calibrate_arm() {
-    OnRev(OUT_C, 20);
-    found_arm = false;
-    start monitor_arm;
-    until(found_arm)
-        Wait(100);
-    rc_rel = MotorRotationCount(OUT_C)-BLOCK_VALUE;
-    current_pos.angle_arm = (GRAB_VALUE-BLOCK_VALUE)/RATIO_COGS;
 }
 
 void lower_arm_to(long rc_end, int power) {
@@ -96,6 +75,28 @@ void slide() {
 
 void horiz() {
     move_arm_to(HORIZONTAL_VALUE, 10);
+}
+
+task monitor_arm() {
+    long rc1, rc2;
+    rc1 = MotorRotationCount(OUT_C);
+    do {
+        rc2 = rc1;
+        Wait(200);
+        rc1 = MotorRotationCount(OUT_C);
+    } while(rc2 - rc1 > THRES_ARM);
+    found_arm = true;
+}
+
+void calibrate_arm() {
+    OnRev(OUT_C, 20);
+    found_arm = false;
+    start monitor_arm;
+    until(found_arm)
+        Wait(100);
+    rc_rel = MotorRotationCount(OUT_C)-BLOCK_VALUE;
+    current_pos.angle_arm = (GRAB_VALUE-BLOCK_VALUE)/RATIO_COGS;
+    hold();
 }
 
 #endif          // arm.nxc

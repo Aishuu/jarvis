@@ -6,7 +6,7 @@
 #include "movement.nxc"
 #include "geometry.nxc"
 
-#define CALIB_DELAY     20000
+#define CALIB_DELAY     30000
 
 long last_calibration;
 
@@ -28,12 +28,12 @@ bool mustCalibrate() {
 
 void calibrate() {
     Wait(1000);
-    current_pos.theta = 450 - (compass - compass_start);
-    current_pos.theta = current_pos.theta % 360;
-    hold();
     moveTo(0,0);
-    setTheta(0);
     calibrate_arm();
+    int c = compass;
+    current_pos.theta = 450 - (c - compass_start);
+    current_pos.theta = current_pos.theta % 360;
+    setTheta(0);
     start detectWall;
     translate(-220);
     while(STOP)
@@ -46,6 +46,7 @@ void calibrate() {
     while(STOP)
         Wait(100);
     current_pos.y = YMIN+GEO_BACK_HALF;
+    translate(10);
     last_calibration = CurrentTick();
 }
 

@@ -40,8 +40,9 @@ void monitor_ball() {
     CreateFile(filename, 4096, fileHandle);
     WriteLnString(fileHandle, "#theta\t\t\tradar", b_written);
     */
+    float theta_init = current_pos.theta;
     for(i=0; i<360/RESOL; i++) {
-        rotate(RESOL);
+        setTheta(theta_init+i*RESOL);
         Wait(500);
         int r = ultras;
         /*

@@ -9,7 +9,7 @@
 #include "calibration.nxc"
 #include "geometry.nxc"
 
-#define BALL_LIGHT_THRES 20
+#define BALL_LIGHT_THRES 18
 
 enum State {    SCAN=0,
                 MOVE_TO_BALL=1,
@@ -28,11 +28,21 @@ safecall void mainLoop() {
     int norm;
     bool ball_found;
     float dist_from_wall, min_dist_from_wall;
+    #ifdef DEBUG
+    int c;
+    #endif
     for(;;) {
+        #ifdef DEBUG
+        Ds(3, "theta", current_pos.theta);
+        Wait(1000);
+        c = 450 - (compass-compass_start);
+        c = c % 360;
+        Ds(4, "compass", c);
+        Wait(2000);
+        #endif
         switch(state) {
             case SCAN:
                 ClearLine(0); TextOut(0, 0, "State : SCAN");
-                hold();
                 find_ball(ball_found, ball_found_x, ball_found_y);
                 if(!ball_found)
                     state = RANDOM_MOVE;
@@ -41,15 +51,14 @@ safecall void mainLoop() {
                 break;
             case RANDOM_MOVE:
                 ClearLine(0); TextOut(0, 0, "State : RANDOM_MOVE");
-                hold();
-                x = Random(XMAX-XMIN)+XMIN;
-                y = Random(YMAX-YMIN)+YMIN;
-                moveTo(x,y);
+                do {
+                    x = Random(XMAX-XMIN)+XMIN;
+                    y = Random(YMAX-YMIN)+YMIN;
+                } while(!safeMoveTo(x,y));
                 state = MUST_CALIB;
                 break;
             case MOVE_TO_BALL:
                 ClearLine(0); TextOut(0, 0, "State : MOVE_TO_BALL");
-                hold();
                 norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
                 x = ball_found_x + 15*(current_pos.x-ball_found_x)/norm;
                 y = ball_found_y + 15*(current_pos.y-ball_found_y)/norm;
@@ -63,9 +72,12 @@ safecall void mainLoop() {
             case RAISE_ARM:
                 ClearLine(0); TextOut(0, 0, "State : RAISE_ARM");
                 catch_ball();
+                Wait(500);
                 s1 = light;
                 hold();
+                Wait(500);
                 s2 = light;
+                Ds(2, "s1-s2", s1-s2);
                 if(abs(s1-s2) > BALL_LIGHT_THRES)
                     state = SLIDE_BALL;
                 else
@@ -95,7 +107,6 @@ safecall void mainLoop() {
                 break;
             case CALIB:
                 ClearLine(0); TextOut(0, 0, "State : CALIB");
-                hold();
                 calibrate();
                 moveTo(0,0);
                 state = SCAN;

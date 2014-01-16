@@ -2,11 +2,9 @@
 #define CONSTANT_H
 
 #define touch Sensor(S1)
-#define compass SensorHTCompass(IN_2)
+#define compass SensorHTCompass(S2)
 #define ultras SensorUS(S3)
-#define light SensorRaw(IN_4)
-
-#define DEBUG
+#define light SensorRaw(S4)
 
 #ifdef DEBUG
 #define D(_i,_s) ClearLine(LCD_LINE##_i); NumOut(1, LCD_LINE##_i, _s)

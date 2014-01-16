@@ -12,11 +12,15 @@
 #define ORD_POWER_SPEED         19.333              //  and a power of 100 correspond to an angular speed of 274°/s (which should be the maximum for the motors)
 #define STABILISATION_TIME      500                 // Delay for Jarvis to a uniform rotation speed
 #define CONST                   2.0513              // Coeff tacho/angle_robot
+#define ROTATE_CALIB_THRES      200                 // angle min to recalibrate with compass
 
-//#define CALIB                                     // Used to calibrate the constant
+// counter used to know when to recalibrate theta
+int cumul_rotate = 0;
 
 // counterclockwise rotate jarvis of angle (in °) at a speed defined by power (between 10 and 90 should be good)
 void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {
+    // Acquire movement mutex
+    Acquire(movement_mutex);
 
     // Compute the final value of the tachos
     const long l_tacho_start = MotorRotationCount(OUT_A);
@@ -44,181 +48,222 @@ void rotateLeft(float angle, int power=ROTATE_DEFAULT_POWER) {
 #ifdef CALIB
     until(touch) {
 #else
-        while((l_tacho_end-l_tacho_start < l_tacho || r_tacho_end-r_tacho_start > r_tacho) && !STOP) {
+    while((l_tacho_end-l_tacho_start < l_tacho || r_tacho_end-r_tacho_start > r_tacho) && !STOP) {
 #endif
-            if(PAUSE) {
-                // Save the current time when the function is paused
-                if(tickPause == 0) {
-                    Off(OUT_AB);
-                    tickPause = CurrentTick();
-                    Release(movement_mutex);
-                }
-
-                Wait(100);
-                continue;
+        if(PAUSE) {
+            // Save the current time when the function is paused
+            if(tickPause == 0) {
+                Off(OUT_AB);
+                tickPause = CurrentTick();
+                Release(movement_mutex);
             }
-            else
-                // Ajust the current time depending on the time spent in pause
-                if(tickPause != 0) {
-                    tick_start += CurrentTick()-tickPause;
-                    tickPause = 0;
-                    Acquire(movement_mutex);
-                }
 
-            // Get the tachos
-            l_tacho = MotorRotationCount(OUT_A)-l_tacho_start;
-            r_tacho = MotorRotationCount(OUT_B)-r_tacho_start;
-
-            // Update the orientation of jarvis
-            current_pos.theta = (current_pos.angle_last_rotate + (r_tacho+r_tacho_start - current_pos.r_tacho_last_rotate)/CONST);
-            current_pos.theta = current_pos.theta % 360;
-
-            // coeff used to ensure both wheels are synchronized
-            coeff = (l_tacho + r_tacho)*ROTATE_RECTIF_COEFF;
-
-            // coeff used to ensure that the average speed is close to the theoritical value (given with power)
-            long t = CurrentTick()-tick_start;
-            if(r_tacho == 0)
-                speed_rectif = 1;
-            else
-                // quotient of the average speed until now over the theoritical speed
-                speed_rectif = (t*speed_degree*CONST)/(1000*r_tacho);
-            if(speed_rectif == 0 || speed_rectif < 0) speed_rectif = 1;
-            if(speed_rectif > 100/power) speed_rectif = 100/power;
-
-            // smooth start
-            if(t < STABILISATION_TIME)
-                speed_rectif = (speed_rectif * t) / STABILISATION_TIME;
-
-            // Modify the power of the motors accordingly
-            OnRev(OUT_A, speed_rectif*power+coeff);
-            OnFwd(OUT_B, speed_rectif*power-coeff);
-        }
-        Off(OUT_AB);
-
-        if(STOP) {
-            current_pos.angle_last_rotate = current_pos.theta;
-            current_pos.angle_cumul = 0;
-            current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
-            current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+            Wait(100);
+            continue;
         }
         else
-            current_pos.angle_cumul += angle;
-            
+            // Ajust the current time depending on the time spent in pause
+            if(tickPause != 0) {
+                tick_start += CurrentTick()-tickPause;
+                tickPause = 0;
+                Acquire(movement_mutex);
+            }
 
-        // Notify the termination of the rotation
-        STOP = false;
+        // Get the tachos
+        l_tacho = MotorRotationCount(OUT_A)-l_tacho_start;
+        r_tacho = MotorRotationCount(OUT_B)-r_tacho_start;
 
-        // Set the ROTATING flag
-        ROTATING = false;
+        // Update the orientation of jarvis
+        current_pos.theta = (current_pos.angle_last_rotate + (r_tacho+r_tacho_start - current_pos.r_tacho_last_rotate)/CONST);
+        current_pos.theta = current_pos.theta % 360;
 
-#ifdef CALIB
-        long rr = ((r_tacho-l_tacho)*25)/18;
-        Ds(1, "right" , r_tacho);
-        Ds(2, "left", l_tacho);
-        Ds(3, "10 turn", rr);
-        for(;;);
-#endif
+        // coeff used to ensure both wheels are synchronized
+        coeff = (l_tacho + r_tacho)*ROTATE_RECTIF_COEFF;
+
+        // coeff used to ensure that the average speed is close to the theoritical value (given with power)
+        long t = CurrentTick()-tick_start;
+        if(r_tacho == 0)
+            speed_rectif = 1;
+        else
+            // quotient of the average speed until now over the theoritical speed
+            speed_rectif = (t*speed_degree*CONST)/(1000*r_tacho);
+        if(speed_rectif == 0 || speed_rectif < 0) speed_rectif = 1;
+        if(speed_rectif > 100/power) speed_rectif = 100/power;
+
+        // smooth start
+        if(t < STABILISATION_TIME)
+            speed_rectif = (speed_rectif * t) / STABILISATION_TIME;
+
+        // Modify the power of the motors accordingly
+        OnRev(OUT_A, speed_rectif*power+coeff);
+        OnFwd(OUT_B, speed_rectif*power-coeff);
     }
+    Off(OUT_AB);
 
-    // clockwise rotate jarvis of angle (in °) at a speed defined by power (between 10 and 90 should be good)
-    // See rotateLeft for details about the internal behaviour of the function
-    void rotateRight(float angle, int power=ROTATE_DEFAULT_POWER) {
-        const long l_tacho_start = MotorRotationCount(OUT_A);
-        const long r_tacho_start = MotorRotationCount(OUT_B);
-        const long l_tacho_end = current_pos.l_tacho_last_rotate - (current_pos.angle_cumul - angle)*CONST;
-        const long r_tacho_end = current_pos.r_tacho_last_rotate + (current_pos.angle_cumul - angle)*CONST;
-        long l_tacho = 0;
-        long r_tacho = 0;
-        long tick_start = CurrentTick();
-        long tickPause = 0;
-        float coeff, speed_rectif;
-        const int speed_degree = SLOPE_POWER_SPEED*power - ORD_POWER_SPEED;
-        ROTATING = true;
-        OnFwd(OUT_A, power);
-        OnRev(OUT_B, power);
+    if(STOP) {
+        // if the movement has been stopped, reset the parameters for the wide odometry
+        current_pos.angle_last_rotate = current_pos.theta;
+        current_pos.angle_cumul = 0;
+        current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
+        current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+    }
+    else
+        current_pos.angle_cumul += angle;
+
+
+    // Notify the termination of the rotation
+    STOP = false;
+
+    // Set the ROTATING flag
+    ROTATING = false;
+
 #ifdef CALIB
-        until(touch) {
+    // 10^4 * (abs(r_tacho)+abs(l_tacho))/2 / (360*10)
+    long rr = ((r_tacho-l_tacho)*25)/18;
+    Ds(1, "right" , r_tacho);
+    Ds(2, "left", l_tacho);
+    Ds(3, "10 turn", rr);
+#endif
+
+    // release the movement mutex
+    Release(movement_mutex);
+}
+
+// clockwise rotate jarvis of angle (in °) at a speed defined by power (between 10 and 90 should be good)
+// See rotateLeft for details about the internal behaviour of the function
+void rotateRight(float angle, int power=ROTATE_DEFAULT_POWER) {
+    Acquire(movement_mutex);
+    const long l_tacho_start = MotorRotationCount(OUT_A);
+    const long r_tacho_start = MotorRotationCount(OUT_B);
+    const long l_tacho_end = current_pos.l_tacho_last_rotate - (current_pos.angle_cumul - angle)*CONST;
+    const long r_tacho_end = current_pos.r_tacho_last_rotate + (current_pos.angle_cumul - angle)*CONST;
+    long l_tacho = 0;
+    long r_tacho = 0;
+    long tick_start = CurrentTick();
+    long tickPause = 0;
+    float coeff, speed_rectif;
+    const int speed_degree = SLOPE_POWER_SPEED*power - ORD_POWER_SPEED;
+    ROTATING = true;
+    OnFwd(OUT_A, power);
+    OnRev(OUT_B, power);
+#ifdef CALIB
+    until(touch) {
 #else
-            while((l_tacho_end-l_tacho_start > l_tacho || r_tacho_end-r_tacho_start < r_tacho) && !STOP) {
+    while((l_tacho_end-l_tacho_start > l_tacho || r_tacho_end-r_tacho_start < r_tacho) && !STOP) {
 #endif
-                if(PAUSE) {
-                    if(tickPause == 0) {
-                        Off(OUT_AB);
-                        tickPause = CurrentTick();
-                        Release(movement_mutex);
-                    }
-                    Wait(100);
-                    continue;
-                }
-                else
-                    if(tickPause != 0) {
-                        tick_start += CurrentTick()-tickPause;
-                        tickPause = 0;
-                        Acquire(movement_mutex);
-                    }
-                l_tacho = MotorRotationCount(OUT_A)-l_tacho_start;
-                r_tacho = MotorRotationCount(OUT_B)-r_tacho_start;
-                current_pos.theta = (current_pos.angle_last_rotate - (l_tacho+l_tacho_start - current_pos.l_tacho_last_rotate)/CONST);
-                current_pos.theta = current_pos.theta % 360;
-                coeff = (l_tacho + r_tacho)*ROTATE_RECTIF_COEFF;
-                long t = CurrentTick()-tick_start;
-                if(l_tacho == 0)
-                    speed_rectif = 1;
-                else
-                    speed_rectif = (t*speed_degree*CONST)/(1000*l_tacho);
-                if(speed_rectif == 0 || speed_rectif < 0) speed_rectif = 1;
-                if(speed_rectif > 100/power) speed_rectif = 100/power;
-                if(t < STABILISATION_TIME)
-                    speed_rectif = (speed_rectif * t) / STABILISATION_TIME;
-                OnFwd(OUT_A, speed_rectif*power-coeff);
-                OnRev(OUT_B, speed_rectif*power+coeff);
+        if(PAUSE) {
+            if(tickPause == 0) {
+                Off(OUT_AB);
+                tickPause = CurrentTick();
+                Release(movement_mutex);
             }
-            Off(OUT_AB);
-            if(STOP) {
-                current_pos.angle_last_rotate = current_pos.theta;
-                current_pos.angle_cumul = 0;
-                current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
-                current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+            Wait(100);
+            continue;
+        }
+        else
+            if(tickPause != 0) {
+                tick_start += CurrentTick()-tickPause;
+                tickPause = 0;
+                Acquire(movement_mutex);
             }
-            else
-                current_pos.angle_cumul -= angle;
-            STOP = false;
-            ROTATING = false;
+        l_tacho = MotorRotationCount(OUT_A)-l_tacho_start;
+        r_tacho = MotorRotationCount(OUT_B)-r_tacho_start;
+        current_pos.theta = (current_pos.angle_last_rotate - (l_tacho+l_tacho_start - current_pos.l_tacho_last_rotate)/CONST);
+        current_pos.theta = current_pos.theta % 360;
+        coeff = (l_tacho + r_tacho)*ROTATE_RECTIF_COEFF;
+        long t = CurrentTick()-tick_start;
+        if(l_tacho == 0)
+            speed_rectif = 1;
+        else
+            speed_rectif = (t*speed_degree*CONST)/(1000*l_tacho);
+        if(speed_rectif == 0 || speed_rectif < 0) speed_rectif = 1;
+        if(speed_rectif > 100/power) speed_rectif = 100/power;
+        if(t < STABILISATION_TIME)
+            speed_rectif = (speed_rectif * t) / STABILISATION_TIME;
+        OnFwd(OUT_A, speed_rectif*power-coeff);
+        OnRev(OUT_B, speed_rectif*power+coeff);
+    }
+    Off(OUT_AB);
+    if(STOP) {
+        current_pos.angle_last_rotate = current_pos.theta;
+        current_pos.angle_cumul = 0;
+        current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
+        current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+    }
+    else
+        current_pos.angle_cumul -= angle;
+    STOP = false;
+    ROTATING = false;
 #ifdef CALIB
-            Ds(1, "right", r_tacho);
-            Ds(2, "left", l_tacho);
-            Ds(3, "10 turn", (l_tacho-r_tacho)*125/9);
-            for(;;);
+    Ds(1, "right", r_tacho);
+    Ds(2, "left", l_tacho);
+    Ds(3, "10 turn", (l_tacho-r_tacho)*125/9);
 #endif
+    Release(movement_mutex);
+}
+
+// calibrate theta according to compass value
+void calibrate_theta() {
+    // Wait a bit to get a correct value from the compass
+    Wait(1000);
+    
+    // Compute the angle according to the value read from the compass
+    current_pos.theta = 450 - (compass - compass_start);
+    current_pos.theta = current_pos.theta % 360;
+
+    // reset the parameters used to compute the odometry on wider ranges
+    current_pos.angle_last_rotate = current_pos.theta;
+    current_pos.angle_cumul = 0;
+    current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
+    current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+
+    // reset the cumul_rotate counter
+    cumul_rotate = 0;
+}
+
+void setTheta(float angle, int power=ROTATE_DEFAULT_POWER);
+
+// rotate jarvis of angle (positive is for counterclockwise) at the speed defined by power
+void rotate(float angle, int power=ROTATE_DEFAULT_POWER) {
+    // Ignore the command if the angle is too small
+    if(abs(angle) < MIN_ROTATION_ANGLE)
+        return;
+
+    // if the angle is too big
+    if(abs(angle) > ROTATE_CALIB_THRES) {
+
+        // Split the rotation in two parts
+        int angle_dest = current_pos.theta+angle;
+        setTheta(current_pos.theta+angle/2, power);
+        setTheta(angle_dest, power);
+    }
+    else {
+        // increase the cumul_rotate counter
+        cumul_rotate += abs(angle);
+
+        // if it is too big
+        if(cumul_rotate > ROTATE_CALIB_THRES) {
+            // recalibrate theta
+            calibrate_theta();
         }
 
-        // rotate jarvis of angle (positive is for counterclockwise) at the speed defined by power
-        void rotate(float angle, int power=ROTATE_DEFAULT_POWER) {
-            // Ignore the command if the angle is too small
-            #ifdef CALIB
-            SetSensorTouch(IN_1);
-            #endif
-            if(abs(angle) < MIN_ROTATION_ANGLE)
-                return;
+        // actual rotation
+        if(angle > 0)
+            rotateLeft(angle, power);
+        else
+            rotateRight(-angle, power);
+    }
+}
 
-            Acquire(movement_mutex);
-            if(angle > 0)
-                rotateLeft(angle, power);
-            else
-                rotateRight(-angle, power);
-            Release(movement_mutex);
-        }
-
-        // rotate jarvis to specifed angle at the speed defined by power
-        void setTheta(float angle, int power=ROTATE_DEFAULT_POWER) {
-            float turn_angle = angle-current_pos.theta;
-            turn_angle = turn_angle % 360;
-            if(turn_angle < 0) turn_angle += 360;
-            if(turn_angle < 180)
-                rotateLeft(turn_angle, power);
-            else
-                rotateRight(360-turn_angle, power);
-        }
+// rotate jarvis to specifed angle at the speed defined by power
+void setTheta(float angle, int power=ROTATE_DEFAULT_POWER) {
+    float turn_angle = angle-current_pos.theta;
+    turn_angle = turn_angle % 360;
+    if(turn_angle < 0) turn_angle += 360;
+    if(turn_angle < 180)
+        rotate(turn_angle, power);
+    else
+        rotate(turn_angle-360, power);
+}
 
 #endif      // rotate.nxc
