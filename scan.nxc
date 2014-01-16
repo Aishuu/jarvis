@@ -4,7 +4,7 @@
 #include "constant.h"
 #include "movement.nxc"
 
-#define BALL_THRESH 15 //dist2wall method threshold
+#define BALL_THRESH 10 //dist2wall method threshold
 #define VAR_THRESH  4 //mean/variance method threshold
 
 //TODO add global variable to store scan data
@@ -79,7 +79,7 @@ void getScanVal(float &dist, float &theta) {
    Wait(1000);
    dist=ultras;
    #ifdef SCAN_COMPASS
-   theta=compass;
+   theta=450+compass_start-compass;
    #else
    theta=current_pos.theta;
    #endif
@@ -90,7 +90,7 @@ bool scanStep(float &ball_x, float &ball_y){
    //else false
    //ball_x and ball_y are ALWAYS filled in with cart values of nearest object
    
-   float dist,theta,tmp[4],dist2Wall;
+   float dist,theta,tmp[4],dist2Wall,corr;
 
    getScanVal(dist,theta);
    //convert to cart
@@ -103,9 +103,13 @@ bool scanStep(float &ball_x, float &ball_y){
    }
    dist2Wall=ArrayMin(tmp,NA,NA);
    Ds(6,"dist2",dist2Wall);
-   while(! touch) {};
    
-   if(dist2Wall>BALL_THRESH) {
+   corr=theta %90;
+   if(corr>45){
+      corr=90-corr;
+   }
+   
+   if(dist2Wall>BALL_THRESH*) {
       return true;
    } else {
       return false;
