@@ -9,38 +9,39 @@
 #include "calibration.nxc"
 #include "geometry.nxc"
 
-#define BALL_LIGHT_THRES 18
-
 enum State {    SCAN=0,
-                MOVE_TO_BALL=1,
-                RANDOM_MOVE=2,
-                MUST_CALIB=3,
-                RAISE_ARM=4,
-                SLIDE_BALL=5,
-                GO_TO_CENTER=6,
-                CALIB=7 };
+    MOVE_TO_BALL=1,
+    RANDOM_MOVE=2,
+    MUST_CALIB=3,
+    RAISE_ARM=4,
+    SLIDE_BALL=5,
+    GO_TO_CENTER=6,
+    CALIB=7,
+    BOOTSTRAP=8 };
+
+int light_thres = 15;
 
 safecall void mainLoop() {
-    State state = SLIDE_BALL;
+    State state = BOOTSTRAP;
     float ball_found_x = 0, ball_found_y = 0;
     float x,y;
-    int s1, s2;
     int norm;
     bool ball_found;
     float dist_from_wall, min_dist_from_wall;
-    #ifdef DEBUG
+    byte s1, s2;
+#ifdef DEBUG
     int c;
-    #endif
+#endif
     for(;;) {
-        #ifdef DEBUG
+#ifdef DEBUG
         Ds(3, "theta", current_pos.theta);
         c = 450 - (compass-compass_start);
         c = c % 360;
         Ds(4, "compass", c);
-        #endif
-        #ifdef WAIT_STATE
+#endif
+#ifdef WAIT_STATE
         Wait(3000);
-        #endif
+#endif
         switch(state) {
             case SCAN:
                 ClearLine(0); TextOut(0, 0, "State : SCAN");
@@ -61,13 +62,11 @@ safecall void mainLoop() {
             case MOVE_TO_BALL:
                 ClearLine(0); TextOut(0, 0, "State : MOVE_TO_BALL");
                 norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
-                x = ball_found_x + 15*(current_pos.x-ball_found_x)/norm;
-                y = ball_found_y + 15*(current_pos.y-ball_found_y)/norm;
-                moveTo(x,y);
+                x = ball_found_x + getDistanceFromWallToRaiseArm()*(current_pos.x-ball_found_x)/norm;
+                y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
+                moveTo(x,y, 90+(atan2(current_pos.x-ball_found_x, ball_found_y-current_pos.y)*180)/PI);
                 release_arm();
-                x = ball_found_x + (GEO_FRONT_HALF+GEO_ARM_WIDTH)*(current_pos.x-ball_found_x)/norm;
-                y = ball_found_y + (GEO_FRONT_HALF+GEO_ARM_WIDTH)*(current_pos.y-ball_found_y)/norm;
-                moveTo(x, y);
+                forward(getDistanceFromWallToRaiseArm()-(GEO_FRONT_HALF+GEO_ARM_WIDTH));
                 state = RAISE_ARM;
                 break;
             case RAISE_ARM:
@@ -78,8 +77,8 @@ safecall void mainLoop() {
                 hold();
                 Wait(500);
                 s2 = light;
-                Ds(2, "s1-s2", s1-s2);
-                if(abs(s1-s2) > BALL_LIGHT_THRES)
+                Ds(2, "s2-s1", s2-s1);
+                if(abs(s2-s1) > light_thres)
                     state = SLIDE_BALL;
                 else
                     state = MUST_CALIB;
@@ -111,6 +110,60 @@ safecall void mainLoop() {
                 calibrate();
                 moveTo(0,0);
                 state = SCAN;
+                break;
+            case BOOTSTRAP:
+                ClearLine(0); TextOut(0, 0, "State : BOOTSTRAP");
+                moveTo(0, YMAX-23);
+                setTheta(270);
+                translate(-3);
+                slide();
+                Wait(1500);
+                moveTo(0, YMAX-50);
+                ball_found_x = XMIN+20;
+                ball_found_y = YMAX-20;
+                norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
+                x = ball_found_x + getDistanceFromWallToRaiseArm()*(current_pos.x-ball_found_x)/norm;
+                y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
+                Ds(1, "x", x);
+                Ds(2, "y", y);
+                Ds(5, "dwall", getDistanceFromWallToRaiseArm());
+                //moveTo(x,y, 90+(atan2(current_pos.x-ball_found_x, ball_found_y-current_pos.y)*180)/PI);
+                moveTo(x,y);
+                release_arm();
+                forward(getDistanceFromWallToRaiseArm()-(GEO_FRONT_HALF+GEO_ARM_WIDTH));
+                s1 = light;
+                hold();
+                s2 = light;
+                if(abs(s1-s2) > light_thres) {
+                    moveTo(0, YMAX-23);
+                    setTheta(270);
+                    translate(-3);
+                    slide();
+                    Wait(1500);
+                }
+                moveTo(0, YMAX-40);
+                ball_found_x = XMAX-20;
+                ball_found_y = YMAX-20;
+                norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
+                x = ball_found_x + getDistanceFromWallToRaiseArm()*(current_pos.x-ball_found_x)/norm;
+                y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
+                Ds(1, "x", x);
+                Ds(2, "y", y);
+                //moveTo(x,y, 90+(atan2(current_pos.x-ball_found_x, ball_found_y-current_pos.y)*180)/PI);
+                moveTo(x,y);
+                release_arm();
+                forward(getDistanceFromWallToRaiseArm()-(GEO_FRONT_HALF+GEO_ARM_WIDTH));
+                s1 = light;
+                hold();
+                s2 = light;
+                if(abs(s1-s2) > light_thres) {
+                    moveTo(0, YMAX-23);
+                    setTheta(270);
+                    translate(-3);
+                    slide();
+                    Wait(1500);
+                }
+                state = GO_TO_CENTER;
                 break;
         }
     }

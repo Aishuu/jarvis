@@ -3,13 +3,15 @@
 
 #define REL_VALUE           0
 #define GRAB_VALUE          ( -604 )
-#define HOLD_VALUE          ( -1082 )
+#define HOLD_VALUE          ( -1182 )
 #define HORIZONTAL_VALUE    ( -1245 )
 #define SLIDE_VALUE         ( -1455 )
 #define BLOCK_VALUE         ( -1600 )
 
 #define RATIO_COGS          8
 #define THRES_ARM           5
+
+#define DEFAULT_ARM_POWER   50
 
 #include "constant.h"
 
@@ -49,7 +51,7 @@ void raise_arm_to(long rc_end, int power) {
         current_pos.angle_arm = (GRAB_VALUE-rc)/RATIO_COGS;
 }
 
-void move_arm_to(long rc_end, int power=50) {
+void move_arm_to(long rc_end, int power=DEFAULT_ARM_POWER) {
     long rc = MotorRotationCount(OUT_C)-rc_rel;
     if(rc < rc_end)
         lower_arm_to(rc_end, power);
@@ -61,8 +63,8 @@ void catch_ball() {
     move_arm_to(GRAB_VALUE);
 }
 
-void hold() {
-    move_arm_to(HOLD_VALUE);
+void hold(int power=DEFAULT_ARM_POWER) {
+    move_arm_to(HOLD_VALUE, power);
 }
 
 void release_arm() {
