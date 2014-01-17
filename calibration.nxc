@@ -28,6 +28,7 @@ bool mustCalibrate() {
 
 void calibrate() {
     Wait(1000);
+    setMidPos();
     moveTo(0,0);
     calibrate_arm();
     int c = compass;
