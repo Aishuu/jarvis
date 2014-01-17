@@ -236,12 +236,14 @@ bool setMidPos() {
      checkTranslationInBound2(0);
      //compute mid rotation angle
      midRot=(inf_rot_lim+sup_rot_lim)/2.;
+     #ifdef DEBUG
      ClearLine(LCD_LINE6);
      TextOut(0,LCD_LINE6,"setMidPos");
      ClearLine(LCD_LINE7);
      TextOut(0,LCD_LINE7,"midRot");
      NumOut(50,LCD_LINE7,midRot);
-     while(! touch) {};
+     //while(! touch) {};
+     #endif
      
      rotate(midRot);
      
@@ -249,10 +251,12 @@ bool setMidPos() {
      checkTranslationInBound2(0);
      //compute mid translation distance
      midTrans=(inf_trans_lim+sup_trans_lim)/2.;
+     #ifdef DEBUG
      ClearLine(LCD_LINE7);
      TextOut(0,LCD_LINE7,"midTra");
      NumOut(50,LCD_LINE7,midTrans);
-     while(! touch) {};
+     //while(! touch) {};
+     #endif
 
      translate(midTrans);
      
