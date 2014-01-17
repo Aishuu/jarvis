@@ -108,6 +108,10 @@ void backward(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
 
 void translate(float distance, char speed=TRANSLATE_DEFAULT_SPEED) {
      Acquire(movement_mutex);
+     Wait(500);
+     int c = 450 + compass_start - compass;
+     c=c%360;
+     current_pos.theta=c;
      if (distance>=0) {
         forward(distance, speed);
      } else {

@@ -53,10 +53,9 @@ safecall void mainLoop() {
                 break;
             case RANDOM_MOVE:
                 ClearLine(0); TextOut(0, 0, "State : RANDOM_MOVE");
-                do {
-                    x = Random(XMAX-XMIN)+XMIN;
-                    y = Random(YMAX-YMIN)+YMIN;
-                } while(!safeMoveTo(x,y));
+                x = Random(XMAX-XMIN)+XMIN;
+                y = Random(YMAX-YMIN)+YMIN;
+                safeMoveTo(x,y);
                 state = MUST_CALIB;
                 break;
             case MOVE_TO_BALL:
@@ -64,7 +63,7 @@ safecall void mainLoop() {
                 norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
                 x = ball_found_x + getDistanceFromWallToRaiseArm()*(current_pos.x-ball_found_x)/norm;
                 y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
-                moveTo(x,y, 90+(atan2(current_pos.x-ball_found_x, ball_found_y-current_pos.y)*180)/PI);
+                moveTo(x,y, atan2(ball_found_y-current_pos.y, ball_found_x-current_pos.x)*180/PI);
                 release_arm();
                 forward(getDistanceFromWallToRaiseArm()-(GEO_FRONT_HALF+GEO_ARM_WIDTH));
                 state = RAISE_ARM;

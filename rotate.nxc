@@ -205,6 +205,7 @@ void rotateRight(float angle, int power=ROTATE_DEFAULT_POWER) {
 // calibrate theta according to compass value
 void calibrate_theta() {
     // Wait a bit to get a correct value from the compass
+    Acquire(movement_mutex);
     Wait(1000);
     
     // Compute the angle according to the value read from the compass
@@ -219,6 +220,7 @@ void calibrate_theta() {
 
     // reset the cumul_rotate counter
     cumul_rotate = 0;
+    Release(movement_mutex);
 }
 
 void setTheta(float angle, int power=ROTATE_DEFAULT_POWER);
