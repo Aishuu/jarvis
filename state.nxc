@@ -65,7 +65,7 @@ safecall void mainLoop() {
                 y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
                 moveTo(x,y, atan2(ball_found_y-current_pos.y, ball_found_x-current_pos.x)*180/PI);
                 release_arm();
-                forward(getDistanceFromWallToRaiseArm()-(GEO_FRONT_HALF+GEO_ARM_WIDTH));
+                forward(getDistanceFromWallToRaiseArm()-(GEO_RADAR+GEO_ARM_WIDTH));
                 state = RAISE_ARM;
                 break;
             case RAISE_ARM:
@@ -112,12 +112,12 @@ safecall void mainLoop() {
                 break;
             case BOOTSTRAP:
                 ClearLine(0); TextOut(0, 0, "State : BOOTSTRAP");
-                moveTo(0, YMAX-23);
+                moveTo(0, YMAX-(GEO_ARM_LENGTH+GEO_PIVOT_Y));
                 setTheta(270);
-                translate(-3);
+                //translate(-3);
                 slide();
                 Wait(1500);
-                moveTo(0, YMAX-50);
+                moveTo(0, 0);
                 ball_found_x = XMIN+20;
                 ball_found_y = YMAX-20;
                 norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
@@ -126,17 +126,16 @@ safecall void mainLoop() {
                 Ds(1, "x", x);
                 Ds(2, "y", y);
                 Ds(5, "dwall", getDistanceFromWallToRaiseArm());
-                //moveTo(x,y, 90+(atan2(current_pos.x-ball_found_x, ball_found_y-current_pos.y)*180)/PI);
-                moveTo(x,y);
+                moveTo(x,y, atan2(ball_found_y-current_pos.y, ball_found_x-current_pos.x)*180/PI);
                 release_arm();
-                forward(getDistanceFromWallToRaiseArm()-(GEO_FRONT_HALF+GEO_ARM_WIDTH));
+                forward(getDistanceFromWallToRaiseArm()-(GEO_RADAR+GEO_ARM_WIDTH));
                 s1 = light;
                 hold();
                 s2 = light;
                 if(abs(s1-s2) > light_thres) {
-                    moveTo(0, YMAX-23);
+                    moveTo(0, YMAX-(GEO_ARM_LENGTH+GEO_PIVOT_Y));
                     setTheta(270);
-                    translate(-3);
+                    //translate(-3);
                     slide();
                     Wait(1500);
                 }
@@ -148,17 +147,16 @@ safecall void mainLoop() {
                 y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
                 Ds(1, "x", x);
                 Ds(2, "y", y);
-                //moveTo(x,y, 90+(atan2(current_pos.x-ball_found_x, ball_found_y-current_pos.y)*180)/PI);
-                moveTo(x,y);
+                moveTo(x,y, atan2(ball_found_y-current_pos.y, ball_found_x-current_pos.x)*180/PI);
                 release_arm();
-                forward(getDistanceFromWallToRaiseArm()-(GEO_FRONT_HALF+GEO_ARM_WIDTH));
+                forward(getDistanceFromWallToRaiseArm()-(GEO_RADAR+GEO_ARM_WIDTH));
                 s1 = light;
                 hold();
                 s2 = light;
                 if(abs(s1-s2) > light_thres) {
-                    moveTo(0, YMAX-23);
+                    moveTo(0, YMAX-(GEO_ARM_LENGTH+GEO_PIVOT_Y));
                     setTheta(270);
-                    translate(-3);
+                    //translate(-3);
                     slide();
                     Wait(1500);
                 }

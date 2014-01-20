@@ -3,77 +3,10 @@
 
 #include "constant.h"
 #include "movement.nxc"
+#include "geometry.nxc"
 
 #define BALL_THRESH 10 //dist2wall method threshold
 #define VAR_THRESH  4 //mean/variance method threshold
-
-//TODO add global variable to store scan data
-// cpScan & snScan array of 24 values
-// global var for ball coord
-// set field data in constant.h?
-
-
-void boundAngle(float &boundThe[], float x=current_pos.x, float y=current_pos.y) {
-TextOut(0,LCD_LINE4,"boundangle");
-    //compute bound angles in rad
-    
-    //compute boundary angles between the walls
-    boundThe[0]=atan2(YMAX-y,XMAX-x);
-    boundThe[1]=atan2(YMAX-y,XMIN-x);
-    boundThe[2]=atan2(YMIN-y,XMIN-x);
-    boundThe[3]=atan2(YMIN-y,XMAX-x);
-    
-    for(int k=0; k<4; k++) {
-       NumOut(0,LCD_LINE5-k*8,boundThe[k]);
-    }
-    
-    while(! touch) {}
-    
-    return;
-} //boundAngle
-
-TypeWall frontWall(float x=current_pos.x, float y=current_pos.y, float theta=current_pos.theta) {
-    TypeWall res;
-    float theRad, boundThe[4];
-    
-    //compute bound angles
-    boundAngle(boundThe,x,y);
-    
-    ClearLine(LCD_LINE4);
-    ClearLine(LCD_LINE5);
-    ClearLine(LCD_LINE6);
-    ClearLine(LCD_LINE7);
-    ClearLine(LCD_LINE8);
-    TextOut(0,LCD_LINE4,"frontWall");
-    for(int k=0; k<4; k++) {
-       NumOut(0,LCD_LINE5-k*8,boundThe[k]);
-    }
-
-    while(! touch) {}
-
-    //convert theta to rad [-pi;pi]
-    theRad=(theta %360)*PI/180.;
-    if(theRad>PI){
-       theRad-=PI;
-    }
-
-    //if condition to find front wall
-    if(theRad>=boundThe[2]){
-       if(theRad<boundThe[3]) {
-          res=YNEG;
-       } else if(theRad<boundThe[0]) {
-          res=XPOS;
-       } else if(theRad<boundThe[1]) {
-          res=YPOS;
-       } else {
-          res=XNEG;
-       }
-    } else {
-       res=XNEG;
-    }
-
-    return res;
-} //frontWall
 
 void getScanVal(float &dist, float &theta) {
    Wait(1000);
@@ -90,28 +23,19 @@ bool scanStep(float &ball_x, float &ball_y){
    //else false
    //ball_x and ball_y are ALWAYS filled in with cart values of nearest object
    
-   float dist,theta,tmp[4],dist2Wall,corr;
+   float dist,theta,tmp[4],dist2Wall;
 
    getScanVal(dist,theta);
-   //convert to cart
-   ball_x=dist*cos(theta*PI/180.)+current_pos.x;
-   ball_y=dist*sin(theta*PI/180.)+current_pos.y;
 
    //compute min dist to wall
    for(int k=0; k<4; k++) {
-      tmp[k]=computeDist2Wall(k,ball_x,ball_y);
+      tmp[k]=computeDist2Wall(k,current_pos.x,current_pos.y);
    }
    dist2Wall=ArrayMin(tmp,NA,NA);
    Ds(6,"dist2",dist2Wall);
 
    
-   corr=theta %90;
-   if(corr>45){
-      corr=90-corr;
-   }
-   corr=1+corr/45.;
-   
-   if(dist2Wall>BALL_THRESH*corr) {
+   if(dist2Wall>dist+GEO_RADAR+BALL_THRESH) {
       return true;
    } else {
       return false;

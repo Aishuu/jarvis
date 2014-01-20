@@ -7,6 +7,7 @@
 #define GEO_RIGHT_WING      12.0
 #define GEO_BACK_HALF       18.9
 #define GEO_FRONT_HALF      7.7
+#define GEO_RADAR           5.0
 #define GEO_PIVOT_HEIGHT    20.4
 #define GEO_PIVOT_Y         3.8
 #define GEO_ARM_LENGTH      20.3
