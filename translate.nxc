@@ -5,8 +5,7 @@
 
 #include "constant.h"
 
-//#define WH_DIST 11.3
-#define DIAM 5.5
+#define DIAM 5.5                        // diameter of the wheels
 #define TRANSLATE_DEFAULT_SPEED 60
 #define TRANSLATE_RECTIF_COEFF 0.5
 

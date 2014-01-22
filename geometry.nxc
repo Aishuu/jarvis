@@ -3,22 +3,29 @@
 
 #include "constant.h"
 
-#define GEO_LEFT_WING       12.7
-#define GEO_RIGHT_WING      12.0
-#define GEO_BACK_HALF       18.9
-#define GEO_FRONT_HALF      7.7
-#define GEO_RADAR           5.0
-#define GEO_PIVOT_HEIGHT    20.4
-#define GEO_PIVOT_Y         3.8
-#define GEO_ARM_LENGTH      20.3
-#define GEO_ARM_WIDTH       11.0
-#define GEO_ARM_LEFT_WING   4.9
-#define GEO_ARM_RIGHT_WING  8.3
+// Sizes of Jarvis in centimeter. Refer to sizes.png to see the schema and what the numbers correspond to
+#define GEO_ARM_LENGTH      20.3        //  1
+#define GEO_PIVOT_Y         3.8         //  2
+#define GEO_FRONT_HALF      7.7         //  3
+#define GEO_BACK_HALF       19.3        //  4
+#define GEO_LEFT_WING       12.7        //  5
+#define GEO_RIGHT_WING      12.0        //  6
+#define GEO_ARM_LEFT_WING   4.9         //  7
+#define GEO_ARM_RIGHT_WING  8.3         //  8
+#define GEO_ARM_WIDTH       11.0        //  9
+#define GEO_PIVOT_HEIGHT    20.4        //  10
+#define GEO_RADAR           5.0         //  11
 
-#define WALL_HEIGHT         8.2
-#define NET_HEIGHT          15.2
+// other sizes in centimeter
+#define WALL_HEIGHT         8.2         //  height of the walls
+#define NET_HEIGHT          15.2        //  height of the net
 
 
+/* Return the boundaries of Jarvis. For this 6 points are used :
+**      - 4 points representing the corners of Jarvis from (XPOS,YPOS) counterclockwise at the height of the walls and below
+**      - 2 points representing the 2 corners at the front of jarvis at a height between the wall height and the net height
+** These values take into account the arm and compute the results according to its angle
+*/
 void getCartesianBoundaries(float &tabx[], float &taby[]) {
     tabx[0] = -GEO_LEFT_WING;
     tabx[1] = -GEO_LEFT_WING;
@@ -53,10 +60,12 @@ void getCartesianBoundaries(float &tabx[], float &taby[]) {
     }
 }
 
+// return the distance needed for jarvis to raise its arm in front of him if it is against a wall
 float getDistanceFromWallToRaiseArm() {
     return sqrt((GEO_ARM_LENGTH+GEO_ARM_WIDTH)*(GEO_ARM_LENGTH+GEO_ARM_WIDTH)-(GEO_PIVOT_HEIGHT-WALL_HEIGHT)*(GEO_PIVOT_HEIGHT-WALL_HEIGHT));
 }
 
+// return the distance needed for jarvis to raise its arm in front of him if it is against the net
 float getDistanceFromNetToRaiseArm() {
     return sqrt((GEO_ARM_LENGTH+GEO_ARM_WIDTH)*(GEO_ARM_LENGTH+GEO_ARM_WIDTH)-(GEO_PIVOT_HEIGHT-NET_HEIGHT)*(GEO_PIVOT_HEIGHT-NET_HEIGHT));
 }

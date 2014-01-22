@@ -10,12 +10,13 @@
 #define NO_THETA_SPECIFIED          2000
 #define XMAX                        60         //cm
 #define XMIN                        ( -1*60 )  //cm
-#define YMAX                        69.4       //cm
+#define YMAX                        59.4       //cm
 #define YMIN                        ( -1*30.6 )//cm
 #define DEFAULT_COLLISION_MARGIN    2.0        //cm
 
 #define CALIB_LENGTH                21.5       //cm
 
+// TODO: replace these with the results from the geometry module
 //Some info on Jarvis' dimensions
 // <!> Point names based on how Jarvis looks when "current_pos.theta"=PI(rad)
 // <!> Values based on actual points' position when ""current_pos.theta"=0
@@ -24,7 +25,6 @@
 #define JLRRHO         20.42           //jarvis' lower right extreme point rho length (cm)
 #define JLRTHE         ( -1*2.5820859 )//jarvis' lower right extreme point theta angle (rad)
 #define NB_CTR_PTS     4               //Number of contour points
-//Jarvis' length with the arm   --> TODO continuous length estimation with arm length&angle
 
 // Global variables for movement module
    //Point:           UpR      UpL    LowR     LowL
@@ -37,23 +37,33 @@ float inf_rot_lim,sup_rot_lim;                        //InBound rotation limits
 float inf_trans_lim,sup_trans_lim;                    //InBound translation limits
 enum TypeWall {XPOS=0,YPOS=1,XNEG=2,YNEG=3};          //wall designation
 
-int debug=0;
-
 ///////////////
 // Functions //
 ///////////////
+
+// init the position of Jarvis
 void init_pos() {
+     // let compass some time to stabilize
      Wait(1000);
+
+     // get start value of compass
      compass_start = compass;
+
+     // Jarvis is starting facing the net
      current_pos.theta = 90;
+
+     // At the position (0,0)
      current_pos.x = 0;
      current_pos.y = 0;
+
+     // set base values of the parameters used to compute odometry for long rotations
      current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
      current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
      current_pos.angle_last_rotate = 90;
      current_pos.angle_cumul = 0;
 }
 
+// move Jarvis to a specific position and rotate him to a specific angle
 void moveTo(float x, float y, float theta=NO_THETA_SPECIFIED) {
      float dx,dy,dist,angle;
 
@@ -121,19 +131,6 @@ void computeLimitAngles(TypeWall wall) {
            while(rel_zero<0) {
               rel_zero+=2*PI; //we want rel_zero in [0, 2PI[ -- actually we want angle1<rel_zero<angle2
            }
-
-           #ifndef DEBUG
-           if(rel_zero<angle1[i] || rel_zero>angle2[i] || angle2[i]-angle1[i]>2*PI) {
-           #endif
-              //something went wrong (code or model)
-/*              Ds(5,"point",i);
-              Ds(6,"angle1",angle1[i]);
-              Ds(7,"angle2",angle2[i]);
-              Ds(8,"rel_z",rel_zero);
-              Wait(10000);*/
-           #ifndef DEBUG
-           }
-           #endif
 
            //retrieve rotation values
            angle1[i]-=rel_zero;
@@ -236,13 +233,13 @@ bool setMidPos() {
      checkTranslationInBound2(0);
      //compute mid rotation angle
      midRot=(inf_rot_lim+sup_rot_lim)/2.;
+
      #ifdef DEBUG
      ClearLine(LCD_LINE6);
      TextOut(0,LCD_LINE6,"setMidPos");
      ClearLine(LCD_LINE7);
      TextOut(0,LCD_LINE7,"midRot");
      NumOut(50,LCD_LINE7,midRot);
-     //while(! touch) {};
      #endif
      
      rotate(midRot);
@@ -251,11 +248,11 @@ bool setMidPos() {
      checkTranslationInBound2(0);
      //compute mid translation distance
      midTrans=(inf_trans_lim+sup_trans_lim)/2.;
+
      #ifdef DEBUG
      ClearLine(LCD_LINE7);
      TextOut(0,LCD_LINE7,"midTra");
      NumOut(50,LCD_LINE7,midTrans);
-     //while(! touch) {};
      #endif
 
      translate(midTrans);

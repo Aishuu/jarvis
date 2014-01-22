@@ -9,26 +9,31 @@
 #include "calibration.nxc"
 #include "geometry.nxc"
 
+#define LIGHT_THRES 15      // difference in the light sensor results above which Jarvis consider a ball has been grabbed
+
+// Possible states
+// Refer to state.jpg to see a schema of the strategy adopted by Jarvis
 enum State {    SCAN=0,
-    MOVE_TO_BALL=1,
-    RANDOM_MOVE=2,
-    MUST_CALIB=3,
-    RAISE_ARM=4,
-    SLIDE_BALL=5,
-    GO_TO_CENTER=6,
-    CALIB=7,
-    BOOTSTRAP=8 };
+                MOVE_TO_BALL=1,
+                RANDOM_MOVE=2,
+                MUST_CALIB=3,
+                RAISE_ARM=4,
+                SLIDE_BALL=5,
+                GO_TO_CENTER=6,
+                CALIB=7,
+                BOOTSTRAP=8 };
 
-int light_thres = 15;
-
+// Main loop of the program
 safecall void mainLoop() {
+    // When the program starts Jarvis is in BOOTSTRAP
     State state = BOOTSTRAP;
-    float ball_found_x = 0, ball_found_y = 0;
-    float x,y;
-    int norm;
-    bool ball_found;
-    float dist_from_wall, min_dist_from_wall;
-    byte s1, s2;
+
+    bool ball_found;                                // set to true if a ball is found
+    float ball_found_x = 0, ball_found_y = 0;       // stores coordinates of a ball if one is found
+    float x,y;                                      // used to compute destination
+    int norm;                                       // used to compute destination
+    byte s1, s2;                                    // values of the light sensor
+
 #ifdef DEBUG
     int c;
 #endif
@@ -44,82 +49,163 @@ safecall void mainLoop() {
 #endif
         switch(state) {
             case SCAN:
+                // scan the court
                 ClearLine(0); TextOut(0, 0, "State : SCAN");
+
+                // rotate until a ball is found
                 find_ball(ball_found, ball_found_x, ball_found_y);
+
+                // if none is found 
                 if(!ball_found)
+                    // go to a random position on the court
                     state = RANDOM_MOVE;
                 else
+                    // else move to the ball
                     state = MOVE_TO_BALL;
                 break;
+
             case RANDOM_MOVE:
+                // move to a random position on the court
                 ClearLine(0); TextOut(0, 0, "State : RANDOM_MOVE");
+
+                // compute a simple random position
                 x = Random(XMAX-XMIN)+XMIN;
                 y = Random(YMAX-YMIN)+YMIN;
+
+                // move to the limit Jarvis is able to
                 safeMoveTo(x,y);
+
+                // test if Jarvis must calibrate
                 state = MUST_CALIB;
                 break;
+
             case MOVE_TO_BALL:
+                // A ball has been found so move to it
                 ClearLine(0); TextOut(0, 0, "State : MOVE_TO_BALL");
+
+                // move close to the ball but far enough so that the arm can be released without touching the ball
                 norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
                 x = ball_found_x + getDistanceFromWallToRaiseArm()*(current_pos.x-ball_found_x)/norm;
                 y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
                 moveTo(x,y, atan2(ball_found_y-current_pos.y, ball_found_x-current_pos.x)*180/PI);
+
+                // release the arm
                 release_arm();
+
+                // go forward a bit
                 forward(getDistanceFromWallToRaiseArm()-(GEO_RADAR+GEO_ARM_WIDTH));
+
+                // raise the arm
                 state = RAISE_ARM;
                 break;
+
             case RAISE_ARM:
+                // raise the arm
                 ClearLine(0); TextOut(0, 0, "State : RAISE_ARM");
+
+                // close the pliers
                 catch_ball();
+
+                // get the value of the light sensor
                 Wait(500);
                 s1 = light;
+
+                // raise a bit the arm
                 hold();
+
+                // get the value of the light sensor again
                 Wait(500);
                 s2 = light;
+
                 Ds(2, "s2-s1", s2-s1);
-                if(abs(s2-s1) > light_thres)
+                // if the difference between the two values is big enough
+                if(abs(s2-s1) > LIGHT_THRES)
+                    // go to net and throw the ball
                     state = SLIDE_BALL;
                 else
+                    // else wonder wether Jarvis should calibrate
                     state = MUST_CALIB;
                 break;
+
             case SLIDE_BALL:
+                // Go to the net and throw the ball
                 ClearLine(0); TextOut(0, 0, "State : SLIDE_BALL");
+
+                // go to the net
                 moveTo(0, YMAX-23);
+
+                // turn over to have the back of jarvis on the net side
+                setTheta(270);
+
+                // go backward a little bit
+                translate(-3);
+
+                // let the ball slide along the railway
+                slide();
+
+                // wait a bit for the ball to have fallen
+                Wait(1500);
+
+                // go back to the center of the court
+                state = GO_TO_CENTER;
+                break;
+
+            case GO_TO_CENTER:
+                // go to the center of the court
+                ClearLine(0); TextOut(0, 0, "State : GO_TO_CENTER");
+
+                // move to (0,0)
+                moveTo(0,0);
+
+                // set the position of the arm as HOLD_VALUE
+                hold();
+
+                // wonder wether Jarvis should calibrate
+                state = MUST_CALIB;
+                break;
+
+            case MUST_CALIB:
+                // wonder wether Jarvis should calibrate
+                ClearLine(0); TextOut(0, 0, "State : MUST_CALIB");
+
+                // if it must
+                if(mustCalibrate())
+                    // calibrate
+                    state = CALIB;
+                else
+                    // else scan the court
+                    state = SCAN;
+                break;
+
+            case CALIB:
+                // calibrate
+                ClearLine(0); TextOut(0, 0, "State : CALIB");
+
+                // calibrate
+                calibrate();
+
+                // go back to the center of the court
+                moveTo(0,0);
+
+                // scan the court
+                state = SCAN;
+                break;
+
+            case BOOTSTRAP:
+                // Bootstrap routine to throw the ball already on Jarvis and try to send the two other ones placed at specific positions
+                ClearLine(0); TextOut(0, 0, "State : BOOTSTRAP");
+
+                // throw the first two balls
+                moveTo(-20, YMAX-(GEO_ARM_LENGTH+GEO_PIVOT_Y)+10);
                 setTheta(270);
                 translate(-3);
                 slide();
                 Wait(1500);
-                state = GO_TO_CENTER;
-                break;
-            case GO_TO_CENTER:
-                ClearLine(0); TextOut(0, 0, "State : GO_TO_CENTER");
-                moveTo(0,0);
-                hold();
-                state = MUST_CALIB;
-                break;
-            case MUST_CALIB:
-                ClearLine(0); TextOut(0, 0, "State : MUST_CALIB");
-                if(mustCalibrate())
-                    state = CALIB;
-                else
-                    state = SCAN;
-                break;
-            case CALIB:
-                ClearLine(0); TextOut(0, 0, "State : CALIB");
-                calibrate();
-                moveTo(0,0);
-                state = SCAN;
-                break;
-            case BOOTSTRAP:
-                ClearLine(0); TextOut(0, 0, "State : BOOTSTRAP");
-                moveTo(0, YMAX-(GEO_ARM_LENGTH+GEO_PIVOT_Y));
-                setTheta(270);
-                //translate(-3);
-                slide();
-                Wait(1500);
+
+                // get back to center and try to grab the ball in the upperleft corner
                 moveTo(0, 0);
                 ball_found_x = XMIN+20;
-                ball_found_y = YMAX-20;
+                ball_found_y = YMAX+7-20;
                 norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
                 x = ball_found_x + getDistanceFromWallToRaiseArm()*(current_pos.x-ball_found_x)/norm;
                 y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
@@ -132,16 +218,21 @@ safecall void mainLoop() {
                 s1 = light;
                 hold();
                 s2 = light;
-                if(abs(s1-s2) > light_thres) {
-                    moveTo(0, YMAX-(GEO_ARM_LENGTH+GEO_PIVOT_Y));
+                // if the ball has been grabbed
+                if(abs(s1-s2) > LIGHT_THRES) {
+                    // throw it
+                    moveTo(0,0);
+                    moveTo(0, YMAX+10-(GEO_ARM_LENGTH+GEO_PIVOT_Y));
                     setTheta(270);
-                    //translate(-3);
+                    translate(-3);
                     slide();
                     Wait(1500);
                 }
+
+                // get back to center and try to grab the ball in the upperright corner
                 moveTo(0, YMAX-40);
                 ball_found_x = XMAX-20;
-                ball_found_y = YMAX-20;
+                ball_found_y = YMAX+7-20;
                 norm = sqrt((ball_found_x-current_pos.x)*(ball_found_x-current_pos.x)+(ball_found_y-current_pos.y)*(ball_found_y-current_pos.y));
                 x = ball_found_x + getDistanceFromWallToRaiseArm()*(current_pos.x-ball_found_x)/norm;
                 y = ball_found_y + getDistanceFromWallToRaiseArm()*(current_pos.y-ball_found_y)/norm;
@@ -153,13 +244,17 @@ safecall void mainLoop() {
                 s1 = light;
                 hold();
                 s2 = light;
-                if(abs(s1-s2) > light_thres) {
-                    moveTo(0, YMAX-(GEO_ARM_LENGTH+GEO_PIVOT_Y));
+                // if the ball has been grabbed throw it
+                if(abs(s1-s2) > LIGHT_THRES) {
+                    moveTo(0,0);
+                    moveTo(0, YMAX+10-(GEO_ARM_LENGTH+GEO_PIVOT_Y));
                     setTheta(270);
-                    //translate(-3);
+                    translate(-3);
                     slide();
                     Wait(1500);
                 }
+
+                // got back to center
                 state = GO_TO_CENTER;
                 break;
         }

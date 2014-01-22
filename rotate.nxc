@@ -4,7 +4,6 @@
 #include "constant.h"
 
 #define ROTATE_DEFAULT_POWER    30                  // Default power of the rotation
-#define MIN_ROTATION_ANGLE      3                   // Minimum accepted angle
 #define MAX_POWER_ODO           30                  // Maximum power at which the us sensor is used for odometry
 
 #define ROTATE_RECTIF_COEFF     0.5
@@ -227,10 +226,6 @@ void setTheta(float angle, int power=ROTATE_DEFAULT_POWER);
 
 // rotate jarvis of angle (positive is for counterclockwise) at the speed defined by power
 void rotate(float angle, int power=ROTATE_DEFAULT_POWER) {
-    // Ignore the command if the angle is too small
-    if(abs(angle) < MIN_ROTATION_ANGLE)
-        return;
-
     // if the angle is too big
     if(abs(angle) > ROTATE_CALIB_THRES) {
 

@@ -5,9 +5,74 @@
 #include "movement.nxc"
 #include "geometry.nxc"
 
-#define BALL_THRESH 10 //dist2wall method threshold
-#define VAR_THRESH  4 //mean/variance method threshold
+#define BALL_THRESH 10  //dist2wall method threshold
+#define VAR_THRESH  4   //mean/variance method threshold
 
+//TODO add global variable to store scan data
+// cpScan & snScan array of 24 values
+// global var for ball coord
+// set field data in constant.h?
+
+
+void boundAngle(float &boundThe[], float x=current_pos.x, float y=current_pos.y) {
+TextOut(0,LCD_LINE4,"boundangle");
+    //compute bound angles in rad
+    
+    //compute boundary angles between the walls
+    boundThe[0]=atan2(YMAX-y,XMAX-x);
+    boundThe[1]=atan2(YMAX-y,XMIN-x);
+    boundThe[2]=atan2(YMIN-y,XMIN-x);
+    boundThe[3]=atan2(YMIN-y,XMAX-x);
+    
+    for(int k=0; k<4; k++) {
+       NumOut(0,LCD_LINE5-k*8,boundThe[k]);
+    }
+    
+    return;
+} //boundAngle
+
+TypeWall frontWall(float x=current_pos.x, float y=current_pos.y, float theta=current_pos.theta) {
+    TypeWall res;
+    float theRad, boundThe[4];
+    
+    //compute bound angles
+    boundAngle(boundThe,x,y);
+    
+    ClearLine(LCD_LINE4);
+    ClearLine(LCD_LINE5);
+    ClearLine(LCD_LINE6);
+    ClearLine(LCD_LINE7);
+    ClearLine(LCD_LINE8);
+    TextOut(0,LCD_LINE4,"frontWall");
+    for(int k=0; k<4; k++) {
+       NumOut(0,LCD_LINE5-k*8,boundThe[k]);
+    }
+
+    //convert theta to rad [-pi;pi]
+    theRad=(theta %360)*PI/180.;
+    if(theRad>PI){
+       theRad-=PI;
+    }
+
+    //if condition to find front wall
+    if(theRad>=boundThe[2]){
+       if(theRad<boundThe[3]) {
+          res=YNEG;
+       } else if(theRad<boundThe[0]) {
+          res=XPOS;
+       } else if(theRad<boundThe[1]) {
+          res=YPOS;
+       } else {
+          res=XNEG;
+       }
+    } else {
+       res=XNEG;
+    }
+
+    return res;
+} //frontWall
+
+// get the value from the ultrasonic sensor
 void getScanVal(float &dist, float &theta) {
    Wait(1000);
    dist=ultras;
@@ -23,25 +88,35 @@ bool scanStep(float &ball_x, float &ball_y){
    //else false
    //ball_x and ball_y are ALWAYS filled in with cart values of nearest object
    
-   float dist,theta,tmp[4],dist2Wall;
+   float dist,theta,tmp[4],dist2Wall,corr;
 
    getScanVal(dist,theta);
+   //convert to cart
+   ball_x=(dist+GEO_RADAR)*cos(theta*PI/180.)+current_pos.x;
+   ball_y=(dist+GEO_RADAR)*sin(theta*PI/180.)+current_pos.y;
 
    //compute min dist to wall
    for(int k=0; k<4; k++) {
-      tmp[k]=computeDist2Wall(k,current_pos.x,current_pos.y);
+      tmp[k]=computeDist2Wall(k,ball_x,ball_y);
    }
    dist2Wall=ArrayMin(tmp,NA,NA);
    Ds(6,"dist2",dist2Wall);
 
+   // the results are more accurate if Jarvis is facing a wall
+   corr=theta %90;
+   if(corr>45){
+      corr=90-corr;
+   }
+   corr=1+corr/45.;
    
-   if(dist2Wall>dist+GEO_RADAR+BALL_THRESH) {
+   if(dist2Wall>BALL_THRESH*corr) {
       return true;
    } else {
       return false;
    }
 } //scanStep
 
+// if a ball is found, ball_found is set to true and ball_found_x and ball_found_y are filled accordingly
 void find_ball(bool &ball_found, float &ball_found_x, float &ball_found_y) {
    for(int k=0; k<24; k++) {
       ball_found=scanStep(ball_found_x,ball_found_y);

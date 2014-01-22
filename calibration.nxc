@@ -6,10 +6,17 @@
 #include "movement.nxc"
 #include "geometry.nxc"
 
-#define CALIB_DELAY     30000
+#define CALIB_DELAY     30000   // minimum delay in miliseconds between two calibration
 
-long last_calibration;
+long last_calibration;          // last_calibration time
 
+// init function
+void init_calibrate() {
+    // set last_calibration to the time when the program is started
+    last_calibration = CurrentTick();
+}
+
+// wait for touch sensor to be pushed and then set STOP to true
 task detectWall(){
      //if the robot touches the wall
      until(touch)
@@ -17,37 +24,63 @@ task detectWall(){
      STOP = true;
 }
 
-void init_calibrate() {
-    last_calibration = CurrentTick();
-}
-
+// return true if Jarvis should enter calibration phase
 bool mustCalibrate() {
     long t = CurrentTick();
     return (t - last_calibration > CALIB_DELAY);
 }
 
+// calibration function
 void calibrate() {
-    Wait(1000);
+    // go to a safe location
     setMidPos();
-    moveTo(0,0);
+
+    // calibrate the arm
     calibrate_arm();
+
+    // wait for the compass to stabilize and reset the current angle
+    Wait(1000);
     int c = compass;
     current_pos.theta = 450 - (c - compass_start);
     current_pos.theta = current_pos.theta % 360;
+
+    // reset the parameters used to compute the odometry on wider ranges
+    current_pos.angle_last_rotate = current_pos.theta;
+    current_pos.angle_cumul = 0;
+    current_pos.r_tacho_last_rotate = MotorRotationCount(OUT_B);
+    current_pos.l_tacho_last_rotate = MotorRotationCount(OUT_A);
+
+    // rotate to place Jarvis facing XPOS
     setTheta(0);
+
+    // go backward until a wall is found
     start detectWall;
     translate(-220);
     while(STOP)
        Wait(100);
+
+    // reset the x value of the current position
     current_pos.x = XMIN+GEO_BACK_HALF;
+
+    // go a bit forward to get away from the wall
     translate(5);
+
+    // face YPOS
     setTheta(90);
+
+    // go backward until a wall is found
     start detectWall;
     translate(-220);
     while(STOP)
         Wait(100);
+
+    // reset the y value of the current position
     current_pos.y = YMIN+GEO_BACK_HALF;
+
+    // get away from the wall
     translate(10);
+
+    // set last_calibration to current time
     last_calibration = CurrentTick();
 }
 

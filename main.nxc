@@ -8,20 +8,29 @@
 #include "movement.nxc"
 #include "arm.nxc"
 
+// Main task of the program
 task main() {
+    // Init the sensors
     SetSensorTouch(S1);
     SetSensorLowspeed(S2);
     SetSensorUltrasonic(S3);
     SetSensorLight(S4);
+
 #ifdef CALIB
+    // if CALIB is defined, place the arm in the horizontal position and rotate if the operator wants to calibrate the rotation constant
     calibrate_arm();
     Wait(500);
     horiz();
     rotate(10);
 #else
+    // otherwise this is the real program
+    
+    // init some variables for the modules to work correctly
     init_pos();
     init_arm();
     init_calibrate();
+
+    // run the main loop
     mainLoop();
 #endif
 }

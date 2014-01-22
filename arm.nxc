@@ -1,56 +1,70 @@
 #ifndef ARM_NXC
 #define ARM_NXC
 
-#define REL_VALUE           0
-#define GRAB_VALUE          ( -604 )
-#define HOLD_VALUE          ( -1182 )
-#define HORIZONTAL_VALUE    ( -1245 )
-#define SLIDE_VALUE         ( -1455 )
-#define BLOCK_VALUE         ( -1600 )
+                                            // Values of the rotation counters of the arm in different positions :
+#define REL_VALUE           0               // arm released and pliers opened
+#define GRAB_VALUE          ( -604 )        // arm released and pliers closed
+#define HOLD_VALUE          ( -1182 )       // arm in a midle position (used when moving most of the time)
+#define HORIZONTAL_VALUE    ( -1245 )       // arm in almost horizontal position (used in bootstrap when there's supposed to be 2 balls on it)
+#define SLIDE_VALUE         ( -1455 )       // arm high enough to enable the balls to slide down the rails
+#define BLOCK_VALUE         ( -1600 )       // maximum value : arm can't go higher
 
-#define RATIO_COGS          8
-#define THRES_ARM           5
+#define RATIO_COGS          8               // ratio of the rotation counter over the angle of the arm
+#define THRES_ARM           5               // difference in rotation counters below which the arm is supposed to be blocked
 
-#define DEFAULT_ARM_POWER   50
+#define DEFAULT_ARM_POWER   50              // default power used to raise the arm
 
 #include "constant.h"
 
-long rc_rel;
-bool found_arm;
+long rc_rel;                                // value of the rotation counter when the arm is in released position
+bool found_arm;                             // boolean used when calibrating the above global variable
 
+// init function to configure some global values
 void init_arm() {
-    rc_rel = MotorRotationCount(OUT_C)-HORIZONTAL_VALUE;
+    // at the begining the arm is in horizontal position
+    rc_rel = MotorRotationCount(OUT_C)+REL_VALUE-HORIZONTAL_VALUE;
     current_pos.angle_arm = (GRAB_VALUE-HORIZONTAL_VALUE)/RATIO_COGS;
 }
 
+// lower arm to a specific position
 void lower_arm_to(long rc_end, int power) {
     long rc;
+
+    // move the arm
     do {
         rc = MotorRotationCount(OUT_C)-rc_rel;
         OnFwd(OUT_C, power);       
         Wait(100);
     } while(rc < rc_end);
     Off(OUT_C);
+
+    // update the current angle of the arm
     if(rc > GRAB_VALUE)
         current_pos.angle_arm = 0;
     else
         current_pos.angle_arm = (GRAB_VALUE-rc)/RATIO_COGS;
 }
 
+// raise arm to a specific position
 void raise_arm_to(long rc_end, int power) {
     long rc;
+    
+    // move the arm
     do {
         rc = MotorRotationCount(OUT_C)-rc_rel;
         OnRev(OUT_C, power);       
         Wait(100);
     } while(rc > rc_end);
     Off(OUT_C);
+
+    // update the current angle of the arm
     if(rc > GRAB_VALUE)
         current_pos.angle_arm = 0;
     else
         current_pos.angle_arm = (GRAB_VALUE-rc)/RATIO_COGS;
 }
 
+// move arm to a specific position
 void move_arm_to(long rc_end, int power=DEFAULT_ARM_POWER) {
     long rc = MotorRotationCount(OUT_C)-rc_rel;
     if(rc < rc_end)
@@ -59,45 +73,62 @@ void move_arm_to(long rc_end, int power=DEFAULT_ARM_POWER) {
         raise_arm_to(rc_end, power);
 }
 
+// move arm to position GRAB_VALUE
 void catch_ball() {
     move_arm_to(GRAB_VALUE);
 }
 
+// move arm to position HOLD_VALUE
 void hold(int power=DEFAULT_ARM_POWER) {
     move_arm_to(HOLD_VALUE, power);
 }
 
+// move arm to position REL_VALUE
 void release_arm() {
     move_arm_to(REL_VALUE);
 }
 
+// move arm to position SLIDE_VALUE
 void slide() {
     move_arm_to(SLIDE_VALUE);
 }
 
-void horiz() {
-    move_arm_to(HORIZONTAL_VALUE, 20);
+// move arm to position HORIZONTAL_VALUE
+void horiz(int power=20) {
+    move_arm_to(HORIZONTAL_VALUE, power);
 }
 
+// used for calibration : wait for the arm to be blocked
 task monitor_arm() {
     long rc1, rc2;
     rc1 = MotorRotationCount(OUT_C);
+    // get the values of the rotation counter
     do {
         rc2 = rc1;
         Wait(200);
         rc1 = MotorRotationCount(OUT_C);
     } while(rc2 - rc1 > THRES_ARM);
+
+    // when the difference is lower than a threshold
     found_arm = true;
 }
 
+// calibrate the rc_rel value to enable correct placement of the arm
 void calibrate_arm() {
+    // slowly raise the arm
     OnRev(OUT_C, 20);
+
+    // wait until the arm is blocked
     found_arm = false;
     start monitor_arm;
     until(found_arm)
         Wait(100);
+
+    // update the values of rc_rel and current angle
     rc_rel = MotorRotationCount(OUT_C)-BLOCK_VALUE;
     current_pos.angle_arm = (GRAB_VALUE-BLOCK_VALUE)/RATIO_COGS;
+
+    // place the arm in HOLD_VALUE
     hold();
 }
 

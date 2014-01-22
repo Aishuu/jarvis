@@ -34,15 +34,16 @@ void _graph(int _i, int _max, int _min) {
 #define DGraph(_i,_m,_n)
 #endif
 
+// used to store the position of Jarvis
 struct position {
-    float theta;
-    float x;
-    float y;
-    long r_tacho_last_rotate;
-    long l_tacho_last_rotate;
-    float angle_last_rotate;
-    float angle_cumul;
-    float angle_arm;
+    float theta;                    // angle of jarvis
+    float x;                        // x pos of jarvis
+    float y;                        // y pos of jarvis
+    long r_tacho_last_rotate;       // right tacho counter at the end of the last translation of jarvis
+    long l_tacho_last_rotate;       // left tacho counter at the end of the last translation of jarvis
+    float angle_last_rotate;        // angle of jarvis at the end of the last translation
+    float angle_cumul;              // cumulative angle jarvis was asked to rotate since his last translation
+    float angle_arm;                // angle of the arm
 };
 
 
@@ -53,6 +54,6 @@ bool ROTATING;          // set to true when jarvis is rotating
 mutex movement_mutex;   // mutex for the movement functions
 
 position current_pos;   // current position of jarvis
-int compass_start;
+int compass_start;      // value of the compass at the begining of the game
 
 #endif      // constant.h
